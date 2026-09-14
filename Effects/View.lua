@@ -22,8 +22,12 @@ end
 function View.Create(model, onChanged, onCleared, canConfigure, onVisibility)
     local self, lanes, rows = {}, {}, {}
     local window, scroll, content, empty
+    local renderedRevision
     local function RefreshWindow()
         if not window or not window:IsShown() then return end
+        local revision = model.GetRevision()
+        if renderedRevision == revision then return end
+        renderedRevision = revision
         local entries = model.GetEntries()
         empty:SetShown(#entries == 0)
         for index, effect in ipairs(entries) do

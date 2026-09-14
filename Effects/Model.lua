@@ -36,9 +36,12 @@ function Model.Create(saved)
         end
     end
     local self = {}
+    local revision = 0
+    function self.GetRevision() return revision end
     function self.GetSaved() return store end
     function self.IsWatched(id) return watched[id] ~= nil end
     function self.Clear()
+        revision = revision + 1
         watched, ignored = {}, {}
         -- Preserve the table owned by SavedVariables while clearing its contents.
         store.watched, store.ignored = {}, {}
@@ -49,10 +52,13 @@ function Model.Create(saved)
             if effect then
                 local id = effect.spellId
                 if watched[id] then
+                    if watched[id].name ~= effect.name or watched[id].icon ~= effect.icon then revision = revision + 1 end
                     watched[id].name, watched[id].icon = effect.name, effect.icon
                 elseif ignored[id] then
+                    if ignored[id].name ~= effect.name or ignored[id].icon ~= effect.icon then revision = revision + 1 end
                     ignored[id].name, ignored[id].icon = effect.name, effect.icon
                 else
+                    revision = revision + 1
                     watched[id] = effect
                     store.watched[#store.watched + 1] = effect
                 end
@@ -63,6 +69,7 @@ function Model.Create(saved)
         if not value then
             if not watched[id] then return true end
             local effect = watched[id]
+            revision = revision + 1
             watched[id] = nil
             for index, selected in ipairs(store.watched) do
                 if selected.spellId == id then table.remove(store.watched, index); break end
@@ -75,6 +82,7 @@ function Model.Create(saved)
         local effect = ignored[id]
         if not effect then return false, "Observe this effect on a target first." end
         effect = Identity(effect)
+        revision = revision + 1
         ignored[id] = nil
         for index, disabled in ipairs(store.ignored) do
             if disabled.spellId == id then table.remove(store.ignored, index); break end

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Skip unchanged checklist rebuilds during HUD updates; normalize source line
+  endings and include staged changes in local whitespace validation.
+
 - Increase the enemy HUD from five to ten visible rows, retaining stable slots,
   lost-threat promotion, and overflow.
 

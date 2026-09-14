@@ -30,6 +30,8 @@ try {
     }
     & git diff --check
     if ($LASTEXITCODE -ne 0) { throw 'Git whitespace validation failed.' }
+    & git diff --cached --check
+    if ($LASTEXITCODE -ne 0) { throw 'Staged Git whitespace validation failed.' }
     # Include new files, which git diff does not examine before their first commit.
     foreach ($file in Get-ChildItem -Recurse -File | Where-Object Extension -in '.lua', '.md', '.toc', '.ps1') {
         if (Select-String -LiteralPath $file.FullName -Pattern '[\t ]+$' -Quiet) {

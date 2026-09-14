@@ -105,4 +105,3 @@ function U.GetHealthColor(pct)
     end
     return 0.86, 0.30, 0.30, 1
 end
-

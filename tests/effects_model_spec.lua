@@ -62,3 +62,15 @@ assert(#Model.Create(beforeClear).GetEntries() == 0, "cleared choices returned o
 model.Observe({ a })
 assert(model.IsWatched(1001), "a cleared opt-out prevented learning from starting fresh")
 print("Automatic discovery, persistent opt-outs, migration and coverage tests passed")
+
+local revisionModel = Model.Create(nil)
+local effect = { spellId = 999, name = "Revision test", icon = 1 }
+revisionModel.Observe({effect})
+local revision = revisionModel.GetRevision()
+revisionModel.Observe({effect})
+assert(revisionModel.GetRevision() == revision, "unchanged observations rebuilt the picker")
+revisionModel.SetWatched(999, false)
+assert(revisionModel.GetRevision() > revision, "selection change did not invalidate picker")
+revision = revisionModel.GetRevision()
+revisionModel.Clear()
+assert(revisionModel.GetRevision() > revision, "clear did not invalidate picker")
