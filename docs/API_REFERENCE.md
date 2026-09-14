@@ -1,5 +1,31 @@
 # Classic Era API reference
 
+## Export freshness check
+
+Run `pwsh ./scripts/check-wow-api-export.ps1` to compare the installed Era build,
+recorded metadata, TOC interface, and required exported documentation files.
+It fails if files are absent or predate the client executable. Use `-WowRoot`
+or `WOW_ROOT` for a nonstandard installation directory.
+
+After refreshing the matching client's interface export, run the same command
+with `-Record` to update `docs/wow-api-export.json`. Recording validates first
+and writes only repository metadata; it does not export files, launch WoW,
+change installations, or update the TOC. `recordedOn` is the recording date,
+not proof of when Blizzard's export was generated.
+
+This checks export freshness, not API signatures or runtime compatibility.
+File timestamps are a heuristic and cannot prove which build produced an export.
+Continue reviewing the exported contracts and testing in-game.
+
+Only Era is configured. Add a Forever target's verified product, directory,
+executable, build, and interface when the beta is available, then use `-Target`.
+An unknown target fails rather than falling back to Era.
+
+The fixture tests run through `test-local.ps1` without requiring WoW. Run the
+live export check separately on a machine with the client installed.
+
+## Verified source
+
 The source checkout's read-only export checker passed for Classic Era build
 1.15.9.69722 and interface 11509 during extraction on 2026-09-13.
 
@@ -55,3 +81,10 @@ lookup does not enable another client or load the source effect-reminder engine.
 Refresh and validate the matching local export before API changes following a
 client patch. Reassess the explicit interface gate at that time. Future clients
 require their own verified export; this addon makes no assumptions about them.
+
+Cooldown learning uses SpellDocumentation.lua and SpellSharedDocumentation.lua:
+C_Spell.GetSpellInfo, GetSpellCooldown and GetSpellCharges. The isOnGCD field
+is only trusted inside SPELL_UPDATE_COOLDOWN, as the export requires. Successful
+player spell IDs come from UnitDocumentation.lua's UNIT_SPELLCAST_SUCCEEDED.
+SPELL_UPDATE_CHARGES supplies charge updates. No fixed GCD spell ID or duration
+threshold is used. Ordinary countdown ticks make no spell API calls.

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "classicEra": {
+      "product": "wow_classic_era",
+      "clientDirectory": "_classic_era_",
+      "executable": "WowClassic.exe",
+      "clientVersion": "1.15.9.69722",
+      "interface": 11509,
+      "recordedOn": "2026-09-13"
+    }
+  }
+}

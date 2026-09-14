@@ -1,5 +1,6 @@
 local addon = {}
 assert(loadfile("Core/Auras.lua"))("ApogeeTank", addon)
+assert(loadfile("Core/ObservedSpellList.lua"))("ApogeeTank", addon)
 assert(loadfile("Effects/Model.lua"))("ApogeeTank", addon)
 local guids = { player = "P", target = "E", party1 = "OTHER", pet = "PET", alias = "P" }
 function UnitExists(unit) return guids[unit] ~= nil end

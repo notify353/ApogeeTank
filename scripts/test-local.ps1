@@ -12,8 +12,8 @@ try {
         throw 'No account-wide settings or other addon dependencies are allowed.'
     }
     if (@($toc | Where-Object { $_ -match '^## SavedVariablesPerCharacter:' }).Count -ne 1 -or
-        $toc -notcontains '## SavedVariablesPerCharacter: ApogeeTankEffectsDB') {
-        throw 'Only the character effect watch list may be persisted.'
+        $toc -notcontains '## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB') {
+        throw 'Only the character effect and cooldown watch lists may be persisted.'
     }
     foreach ($line in $toc) {
         if ($line -match '^[^#].*\.lua$' -and -not (Test-Path -LiteralPath $line)) {
@@ -28,6 +28,7 @@ try {
         & lua $test.FullName
         if ($LASTEXITCODE -ne 0) { throw "Test failed: $($test.Name)" }
     }
+    & (Join-Path $PSScriptRoot 'test-wow-api-export.ps1')
     & git diff --check
     if ($LASTEXITCODE -ne 0) { throw 'Git whitespace validation failed.' }
     & git diff --cached --check

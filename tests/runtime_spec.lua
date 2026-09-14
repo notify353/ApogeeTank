@@ -63,6 +63,8 @@ function InCombatLockdown() return lockdown end
 GameTooltip = { shown = false }
 function GameTooltip:SetOwner(owner) self.owner = owner end
 function GameTooltip:SetText(text) self.text = text end
+function GameTooltip:SetSpellByID(id) self.spellId = id end
+function GameTooltip:AddLine() error("unexpected addon text on standard spell tooltip") end
 function GameTooltip:Show() self.shown = true end
 function GameTooltip:Hide() self.shown = false end
 function GetBuildInfo() return "1.15.9", "69722", "", interface end
@@ -214,9 +216,11 @@ assert(row.statusFill.width == 84 and row.statusFill.color[1] == 0.28,
 
 maximumPower = 0
 Event("UNIT_MAXPOWER", "player")
+Tick(0.1)
 assert(not addon.ThreatHud.GetPlayerPowerBar():IsShown())
 powerType, powerToken, maximumPower = 0, "MANA", 100
 Event("UNIT_DISPLAYPOWER", "player")
+Tick(0.1)
 assert(addon.ThreatHud.GetPlayerPowerBar():IsShown())
 
 tokens.target.dead = true
@@ -286,9 +290,9 @@ assert(not named.ApogeeTankEffectsWindow, "combat click reopened settings after 
 ClickHealth("LeftButton", true)
 Tick(0.1)
 local picker = named.ApogeeTankEffectsWindow
-assert(picker and picker:IsShown() and picker.width == 370 and picker.height == 260)
+assert(picker and picker:IsShown() and picker.width == 680 and picker.height == 312)
 for _, item in ipairs(frames) do
-    assert(not (item.parent == picker and item.kind == "FontString"),
+    assert(not (item.parent == picker and item.kind == "FontString" and item.text ~= "Cooldowns" and item.text ~= "Debuffs"),
         "picker regained a title, explanation, count or footer")
 end
 local sunderCheck, shoutCheck
@@ -299,6 +303,12 @@ for _, item in ipairs(frames) do
     end
 end
 assert(sunderCheck and not shoutCheck, "picker did not limit discovery to the player's debuffs")
+assert(sunderCheck.hover and sunderCheck.hover.mouse)
+sunderCheck.hover.scripts.OnEnter(sunderCheck.hover)
+assert(GameTooltip.shown and GameTooltip.spellId, "spell icon/name hover did not show a native tooltip")
+sunderCheck.hover.scripts.OnLeave()
+assert(not GameTooltip.shown)
+
 assert(sunderCheck:GetChecked(), "automatically watched row was not checked")
 assert(#ApogeeTankEffectsDB.watched == 1 and ApogeeTankEffectsDB.watched[1].spellId == 7386,
     "picker selected the wrong captured row")
@@ -342,6 +352,8 @@ Event("UNIT_AURA", "nameplate1")
 Tick(0.1)
 assert(#MissingIcons() == 1 and MissingIcons()[1].texture.texture == 10,
     "selected missing effect did not show its learned icon")
+assert(not MissingIcons()[1].mouse and not MissingIcons()[1].scripts.OnEnter,
+    "normal HUD reminder still has a tooltip")
 assert(MissingIcons()[1].points[1][1] == "RIGHT"
     and MissingIcons()[1].points[1][2] == row.controlBar
     and MissingIcons()[1].points[1][3] == "LEFT"
@@ -408,7 +420,7 @@ Tick(0.1)
 assert(#MissingIcons() == 1 and #ApogeeTankEffectsDB.ignored == 0)
 local clear
 for _, item in ipairs(frames) do
-    if item.parent == picker and item.text == "Clear All" then clear = item end
+    if item.name == "ApogeeTankDebuffsClear" then clear = item end
 end
 assert(clear, "compact picker has no Clear All button")
 clear.scripts.OnClick(clear)
@@ -420,6 +432,8 @@ Tick(0.1)
 local savedBeforeClear = ApogeeTankEffectsDB
 Event("UNIT_AURA", "target") -- Deliberately queue a refresh before clearing.
 clear.scripts.OnClick(clear)
+assert(#ApogeeTankEffectsDB.watched > 0, "first clear click erased selections")
+named.ApogeeTankDebuffsConfirmClear.scripts.OnClick()
 Tick(0.1)
 assert(ApogeeTankEffectsDB == savedBeforeClear and #ApogeeTankEffectsDB.watched == 0
     and #ApogeeTankEffectsDB.ignored == 0,
@@ -451,7 +465,7 @@ assert(secondRow and #MissingIcons(secondRow) == 1 and #MissingIcons(row) == 0,
     "two enemies did not have independent coverage")
 assert(secondRow.marker:IsShown() and secondRow.marker.points[1][1] == "LEFT"
     and secondRow.marker.points[1][2] == secondRow
-    and secondRow.marker.points[1][3] == "RIGHT" and secondRow.marker.points[1][4] == 2,
+    and secondRow.marker.points[1][3] == "RIGHT" and secondRow.marker.points[1][4] == -5,
     "existing raid-marker placement changed")
 enemy2Auras = { { sourceUnit = "player", spellId = 7386, name = "Sunder Armor", icon = 10 } }
 Event("UNIT_AURA", "nameplate2")
@@ -493,6 +507,7 @@ for _, item in ipairs(frames) do
 end
 assert(overflow and overflow:IsShown() and overflow.points[1][1] == "RIGHT",
     "long reminder list did not use a single-row overflow indicator")
+assert(not overflow.mouse and not overflow.scripts.OnEnter, "HUD overflow still has a tooltip")
 extraView.Render({ { anchor = row, guid = "replacement", missing = {} } })
 assert(#MissingIcons(row) == 0 and not overflow:IsShown(),
     "recycled enemy row retained the previous enemy's reminders")
@@ -527,3 +542,108 @@ Tick(0.1)
 assert(not picker:IsShown() and addon.ThreatHud.GetRows()[1].enemy.demoMissing == nil,
     "combat retained synthetic enemies")
 print("Draggable picker and isolated animated demo tests passed")
+
+-- Cooldown learning reaches the real player-bar view and shared picker.
+C_Spell = {
+    GetSpellInfo = function(id) return { name = "Test cooldown", iconID = 4321 } end,
+    GetSpellCooldown = function() return { startTime = now, duration = 30,
+        isEnabled = true, isActive = true, isOnGCD = false, modRate = 1 } end,
+    GetSpellCharges = function() return nil end,
+}
+for _, f in ipairs(frames) do
+    if f.events.UNIT_SPELLCAST_SUCCEEDED then
+        f.scripts.OnEvent(f, "UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 9876)
+    end
+end
+Event("SPELL_UPDATE_COOLDOWN")
+assert(#ApogeeTankCooldownsDB.watched == 1, "cooldown was not learned in composed addon")
+local cooldownIcon
+for _, f in ipairs(frames) do
+    if f.parent == addon.ThreatHud.GetPlayerStatusAnchor() and f.image and f.image.texture == 4321 then cooldownIcon = f end
+end
+assert(cooldownIcon and cooldownIcon:IsShown() and cooldownIcon.label.text == "30",
+    "cooldown countdown did not appear beside the player bar")
+combat = false
+Event("PLAYER_REGEN_ENABLED")
+ClickHealth("LeftButton", true)
+Tick(0.1)
+assert(named.ApogeeTankDebuffsClear and named.ApogeeTankCooldownsClear,
+    "picker does not expose both columns")
+local effectCount = #ApogeeTankEffectsDB.watched
+named.ApogeeTankCooldownsClear.scripts.OnClick()
+assert(#ApogeeTankCooldownsDB.watched == 1, "first click cleared cooldowns")
+named.ApogeeTankCooldownsConfirmClear.scripts.OnClick()
+assert(#ApogeeTankCooldownsDB.watched == 0 and #ApogeeTankEffectsDB.watched == effectCount,
+    "cooldown clear changed debuff selections")
+assert(not cooldownIcon:IsShown(), "cleared cooldown icon remained visible")
+picker:Hide()
+print("Cooldown HUD and independent picker clear integration passed")
+
+ClickHealth("LeftButton", true)
+Tick(0.1)
+named.ApogeeTankCooldownsClear.scripts.OnClick()
+assert(named.ApogeeTankCooldownsConfirmClear:IsShown())
+picker:Hide()
+assert(not named.ApogeeTankCooldownsConfirmClear:IsShown(),
+    "closing the picker retained an armed reset")
+
+-- Repeated identical cooldown frames should not resend texture/text/alpha writes.
+local writes = 0
+for _, method in ipairs({ "SetTexture", "SetText", "SetAlpha" }) do
+    local original = methods[method]
+    methods[method] = function(self, ...)
+        writes = writes + 1
+        return original(self, ...)
+    end
+end
+local perfView = addon.CooldownView.Create(function() return healthBar end)
+local perfEntries = {{ spellId = 99, icon = 123, watched = true }}
+local perfStates = {[99] = {start = 100, duration = 30, enabled = true}}
+perfView.Render(perfEntries, perfStates, 100)
+writes = 0
+for i = 1, 100 do perfView.Render(perfEntries, perfStates, 100) end
+assert(writes == 0, "unchanged countdown frames rewrote texture/text/alpha")
+perfView.Render(perfEntries, perfStates, 101)
+assert(writes == 1, "one elapsed second should update only the countdown text")
+print("Cooldown render performance: 100 unchanged frames produced zero content writes")
+
+local activeStance = 1
+function GetNumShapeshiftForms() return 2 end
+function GetShapeshiftFormInfo(index) return 8000 + index, index == activeStance, true, 9000 + index end
+Event("UPDATE_SHAPESHIFT_FORM")
+local stanceIcon
+for _, f in ipairs(frames) do
+    if f.parent == addon.ThreatHud.GetPlayerStatusAnchor() and f.texture == 8001 then stanceIcon = f end
+end
+assert(stanceIcon and stanceIcon:IsShown() and stanceIcon.points[1][1] == "RIGHT")
+activeStance = 2
+Event("UPDATE_SHAPESHIFT_FORM")
+assert(stanceIcon.texture == 8002, "stance change did not update icon")
+activeStance = 0
+Event("UPDATE_SHAPESHIFT_FORM")
+assert(not stanceIcon:IsShown(), "no active stance left an old icon visible")
+print("Active stance icon display and switching passed")
+
+combat = false
+Event("PLAYER_REGEN_ENABLED")
+Tick(0.1)
+local redraws, scans = 0, 0
+local originalHealth = addon.UnitAPI.GetHealth
+addon.UnitAPI.GetHealth = function(unit)
+    if unit == "player" then redraws = redraws + 1 end
+    return originalHealth(unit)
+end
+local originalAuras = addon.Auras.ReadPlayerHarmful
+addon.Auras.ReadPlayerHarmful = function(unit)
+    scans = scans + 1
+    return originalAuras(unit)
+end
+for i = 1, 100 do
+    Event("UNIT_POWER_FREQUENT", "player")
+    Event("UNIT_HEALTH", "target")
+end
+assert(redraws == 0 and scans == 0, "event burst performed immediate redraws or scans")
+Tick(0.1)
+assert(redraws == 1 and scans == 0, "health/power burst was not coalesced")
+assert(not driver:IsShown(), "idle threat driver kept running")
+print("100 health/power event pairs: one player redraw, zero aura scans, idle driver asleep")

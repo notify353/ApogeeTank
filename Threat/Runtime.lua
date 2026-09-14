@@ -23,6 +23,7 @@ function addon.StartThreat()
     local function Refresh()
         hud.Refresh()
         dirty, elapsedSinceRefresh = false, 0
+        driver:SetShown(inCombat)
     end
 
     local function Start()
@@ -90,10 +91,10 @@ function addon.StartThreat()
         elseif event == "UNIT_AURA" then
             observer.InvalidateAuras(unit)
         end
-        if unit == "player" then hud.RefreshPlayer() end
         -- Coalesce bursty unit events; polling also covers target-chain changes
         -- and ends the original observer's short last-seen retention window.
         dirty = true
+        driver:Show()
     end)
 
     driver:SetScript("OnUpdate", function(_, elapsed)

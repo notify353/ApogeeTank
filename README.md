@@ -40,7 +40,7 @@ members and pets; it is not a raid-wide threat meter.
    effect ID. The player health/power strip no longer has missing-effect icons.
 
 Missing effects are evaluated separately for every visible enemy, including
-off-target enemies. Four icons fit beside each meter; a `+N` tooltip lists
+off-target enemies. Four icons fit beside each meter; a `+N` count indicates
 additional missing effects without overlapping adjacent rows. The complete
 owned-aura snapshot determines coverage, including effects beyond the right
 lane's visible slots. No reminders remain for stale/dead/unavailable enemies
@@ -78,6 +78,11 @@ Ability cooldown lanes, party frames, actions, dungeon guides, and broader
 maintained-effect suggestions remain outside this scope.
 
 ## Development installation
+
+WoW Forever beta support is planned alongside Era. Preparation and acceptance
+criteria are recorded in [the beta compatibility plan](docs/FOREVER_BETA_PLAN.md).
+The current runtime still supports only Classic Era; beta compatibility has not
+yet been verified.
 
 The Classic Era AddOns junction points at this checkout. Reload after code
 changes. Apogee Party Health Bars is unchanged; if its Threat Control is also
@@ -137,3 +142,43 @@ markers, and missing/applied effects. Drag the window background to move it
 aside; its position is session-only. Watched effects supply the demo icons,
 or labeled sample icons appear when the list is empty. Demo data is never
 learned or saved. Closing the window or entering combat removes the demo.
+
+## Learned cooldowns
+
+The Shift-left-click picker shows Debuffs on the left and Cooldowns on the right.
+Successful player spell casts are candidates for automatic learning. A real
+cooldown or charge recharge reported by the Era API adds the spell, checked by
+default. Global cooldowns alone do not qualify. Unchecks persist per character;
+Each column has its own Clear button. It reveals a separate Confirm clear button;
+Cancel or closing the window abandons the reset.
+
+Up to six watched cooldown icons sit right of the player health bar, with a
+count for additional selections. Icons show remaining seconds (rounded up to
+minutes for long timers), available charges, or a bright ready state. Unknown
+or held cooldown state is dimmed with a question mark. Timers are event-driven;
+only their displayed countdown updates between events. No spell catalog or
+fixed spell durations are used. Spell IDs/ranks remain separate. Items, pets,
+passive procs, and abilities never successfully cast by the player are outside
+this first version. Discovery waits up to ten seconds for cooldown events after
+a cast; cooldowns that begin much later may need another use to be discovered.
+If the client does not provide authoritative global-cooldown classification,
+non-charge spells are not inferred from duration guesses. Only Classic Era is
+supported. Reload after installation, use a cooldown, and check learning,
+countdown, readiness, uncheck persistence, and each list's independent Clear All.
+
+`Core/ObservedSpellList.lua` owns the shared identity/selection persistence model;
+`Core/Cooldowns.lua` is the cooldown API boundary. `Cooldowns/` owns cooldown
+observation and display; the existing picker selects between the two models.
+
+Cooldown learning excludes spells on the client stance/form bar. Already learned
+entries in that category are removed automatically; no stance spell catalog is used.
+
+The picker uses two independently scrolling columns with compact headings and
+a subtle divider. Reset controls sit below the lists, require a separate
+confirmation click, and remain blocked in combat. Dragging and HUD demo remain.
+
+The normal HUD has no tooltips. Native spell tooltips are available only inside
+the settings lists. Reminder icons and overflow counts do not intercept the mouse.
+
+Cooldown HUD icons and overflow appear only in combat. Learning continues outside
+combat, and saved selections remain available in settings; health and power stay visible.

@@ -1,4 +1,5 @@
 local addon = {}
+assert(loadfile("Core/ObservedSpellList.lua"))("ApogeeTank", addon)
 assert(loadfile("Effects/Model.lua"))("ApogeeTank", addon)
 local Model = addon.EffectsModel
 local model = Model.Create(nil)

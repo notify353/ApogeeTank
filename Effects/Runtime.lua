@@ -38,7 +38,7 @@ function addon.StartEffects(deps)
                 driver:Hide()
             end, CanConfigure, function(shown)
                 deps.SetDemo(shown, model.GetEntries)
-            end)
+            end, deps.Cooldowns)
         end
         if needsObservation then
             local valid = UnitExists("target") and UnitCanAttack("player", "target")
@@ -82,7 +82,8 @@ function addon.StartEffects(deps)
             or event == "UNIT_FACTION" or event == "UNIT_FLAGS" then
             if not unit or not UnitIsUnit(unit, "target") then return end
         end
-        RequestRefresh(true)
+        RequestRefresh(event == "UNIT_AURA" or event == "PLAYER_TARGET_CHANGED"
+            or event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD")
     end)
     for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD",
         "PLAYER_LEAVING_WORLD", "PLAYER_TARGET_CHANGED", "UNIT_AURA", "UNIT_HEALTH",

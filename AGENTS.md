@@ -2,8 +2,10 @@
 
 - This repository is independent. Do not modify Apogee Party Health Bars when
   extracting features; treat that checkout as read-only source material.
-- Target Classic Era only until the owner explicitly expands support. Verify
-  APIs and events against the current local Era Blizzard interface export.
+- Classic Era remains the supported runtime. The owner has authorized preparing
+  WoW Forever beta support; follow `docs/FOREVER_BETA_PLAN.md`. Verify each
+  client's APIs and events against its own local Blizzard interface export.
+  Enable Forever only after its build identifiers and required APIs are verified.
 - Preserve the existing threat HUD appearance unless a visual change is requested.
 - Everyone gets the same behavior. Do not add settings, profiles, SavedVariables,
   movable configuration surfaces, or key bindings without an explicit request.
@@ -44,3 +46,15 @@
 - Authorized picker exception: draggable window with session-only position and
   an animated HUD demo while open outside combat. Synthetic effects never enter
   discovery or persistence; closing, combat, and zoning stop the demo.
+
+- Authorized cooldown feature: learn successful player spells with confirmed
+  real cooldowns/charge recharge, no catalog or guessed duration threshold.
+  Own character SavedVariable and persistent opt-outs; the existing picker
+  switches lists and Clear All affects only its current list. Keep APIs in
+  Core/Cooldowns.lua, lifecycle/display in Cooldowns/, shared selection data in
+  Core/ObservedSpellList.lua. No item/pet tracking. The authorized Forever beta
+  preparation follows the compatibility plan above.
+
+- Picker redesign supersedes the list toggle: show cooldowns and debuffs side by
+  side, with compact headings and independent scrolling. Each bottom Clear
+  control reveals a separate Confirm clear button; closing cancels confirmation.

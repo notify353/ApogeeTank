@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- Place Debuffs on the left and Cooldowns on the right in settings.
+
+- Coalesce player-bar updates with the HUD refresh, sleep the threat update
+  driver while idle, and avoid aura discovery scans on target health changes.
+
+- Display the active stance icon left of the player health/power strip.
+
+- Reuse cooldown reads within an event and avoid resending unchanged icon,
+  countdown-text, and opacity values during display updates.
+
+- Hide cooldown icons and overflow outside combat while keeping the player bars visible.
+
+- Remove normal HUD reminder and overflow tooltips; keep spell tooltips in settings only.
+
+- Show native spell tooltips over picker icons and names without extra addon text.
+
+- Replace the picker toggle with side-by-side cooldown/debuff columns and
+  separate, confirmed clear controls below each list.
+
+- Center cooldown icons on the full player health/power strip and equalize raid
+  marker gaps against the visible enemy bar edge.
+
+- Exclude stance-bar spells from cooldown learning and remove already learned
+  stances using the client-provided spell identities.
+
+- Add learned player cooldowns, independent persisted selections, a picker list
+  switch, and event-driven timers beside the player health bar.
+
 - Show a repeating cast on the first demo enemy.
 
 - Reserve the position immediately right of enemy bars for raid markers,
