@@ -16,7 +16,7 @@ local PLAYER_BAR_GAP, PLAYER_SECTION_GAP = 2, 5
 local PLAYER_STATUS_HEIGHT = PLAYER_HEALTH_HEIGHT + PLAYER_BAR_GAP + PLAYER_POWER_HEIGHT
 local PLAYER_SECTION_HEIGHT = PLAYER_STATUS_HEIGHT + PLAYER_SECTION_GAP
 local QUEUE_LIMIT = 10
-local DEBUFF_ICON_SIZE, DEBUFF_ICON_GAP, DEBUFF_LANE_GAP = 18, 2, 6
+local DEBUFF_ICON_SIZE, DEBUFF_ICON_GAP = 18, 2
 local DEBUFF_LIMIT = 6
 local ROW_GAP = 1
 local COLORS = {
@@ -89,7 +89,7 @@ local function CreateRow(index)
     local controlBar = CreateFrame("Frame", nil, row)
     controlBar:SetPoint("TOPRIGHT", row, "TOPRIGHT", -CONTROL_RIGHT, -1)
     controlBar:SetSize(CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT)
-    marker:SetPoint("RIGHT", row, "LEFT", -6, 0)
+    marker:SetPoint("LEFT", row, "RIGHT", DEBUFF_ICON_GAP, 0)
 
     local controlBg = controlBar:CreateTexture(nil, "BACKGROUND")
     controlBg:SetAllPoints(); controlBg:SetColorTexture(0.13, 0.14, 0.16, 1)
@@ -110,7 +110,7 @@ local function CreateRow(index)
         local holder = CreateFrame("Frame", nil, row)
         holder:SetSize(DEBUFF_ICON_SIZE, DEBUFF_ICON_SIZE)
         if slot == 1 then
-            holder:SetPoint("LEFT", row, "RIGHT", DEBUFF_LANE_GAP, 0)
+            holder:SetPoint("LEFT", marker, "RIGHT", DEBUFF_ICON_GAP, 0)
         else
             holder:SetPoint("LEFT", debuffIcons[slot - 1], "RIGHT", DEBUFF_ICON_GAP, 0)
         end

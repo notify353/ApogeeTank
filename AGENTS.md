@@ -22,7 +22,7 @@
   do not count. Preserve explicitly selected identities when changing this policy.
 - Missing effects belong immediately left of each enemy threat meter, with four
   visible icons and overflow. Applied effects remain on the right; raid markers
-  sit outside the row on the far left. Use
+  occupy a reserved space right of the enemy bar, before applied debuffs. Use
   the public row snapshot/callback contract and complete owned-aura lists, never
   the truncated visible debuff slots, to determine missing effects. No automatic
   marker assignment is included.

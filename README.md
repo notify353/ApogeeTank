@@ -46,8 +46,8 @@ owned-aura snapshot determines coverage, including effects beyond the right
 lane's visible slots. No reminders remain for stale/dead/unavailable enemies
 or after their rows disappear on combat exit.
 
-Raid-marker **display** sits outside each row on the far left. Missing effects
-occupy the gap between the enemy name and threat meter. Automatic marking and Dungeon Guide marker assignment were
+Raid-marker **display** sits immediately right of each enemy bar in a reserved
+space, before applied debuffs. Missing effects remain left of the threat meter. Automatic marking and Dungeon Guide marker assignment were
 not extracted; Apogee Tank never sets or clears raid markers.
 
 Learned effect identities (ID, name, icon) and unchecked choices survive reloads,

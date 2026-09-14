@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Show a repeating cast on the first demo enemy.
+
+- Reserve the position immediately right of enemy bars for raid markers,
+  before the applied debuffs with matching compact gaps; missing reminders stay on the left.
+
 - Skip unchanged checklist rebuilds during HUD updates; normalize source line
   endings and include staged changes in local whitespace validation.
 

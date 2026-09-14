@@ -37,6 +37,11 @@ function addon.CreateThreatDemo()
                 playerDebuffOverflow = math.max(0, #applied - 6),
                 demoMissing = missing,
             }
+            if index == 1 then
+                local startTime = now - (now % 4)
+                enemies[index].cast = { name = "Demo cast", startTime = startTime,
+                    endTime = startTime + 4, isChannel = false, notInterruptible = false }
+            end
         end
         addon.ThreatHud.SetDemoSnapshot({ enemies = enemies, total = #enemies })
         addon.ThreatHud.Tick(0.1)

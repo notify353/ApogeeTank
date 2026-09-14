@@ -449,9 +449,9 @@ for _, enemyRow in ipairs(addon.ThreatHud.GetEnemyRows()) do
 end
 assert(secondRow and #MissingIcons(secondRow) == 1 and #MissingIcons(row) == 0,
     "two enemies did not have independent coverage")
-assert(secondRow.marker:IsShown() and secondRow.marker.points[1][1] == "RIGHT"
+assert(secondRow.marker:IsShown() and secondRow.marker.points[1][1] == "LEFT"
     and secondRow.marker.points[1][2] == secondRow
-    and secondRow.marker.points[1][3] == "LEFT" and secondRow.marker.points[1][4] == -6,
+    and secondRow.marker.points[1][3] == "RIGHT" and secondRow.marker.points[1][4] == 2,
     "existing raid-marker placement changed")
 enemy2Auras = { { sourceUnit = "player", spellId = 7386, name = "Sunder Armor", icon = 10 } }
 Event("UNIT_AURA", "nameplate2")
@@ -509,6 +509,8 @@ assert(not picker.moving, "picker did not stop dragging")
 local demoRow = addon.ThreatHud.GetRows()[1]
 assert(demoRow.enemy.name == "Demo enemy 1" and demoRow.enemy.demoMissing,
     "picker did not open a clearly labeled demo")
+assert(demoRow.enemy.cast and addon.ThreatHud.GetCastDisplay(demoRow.enemy, now),
+    "demo enemy has no active cast preview")
 local savedCount = #ApogeeTankEffectsDB.watched
 local oldControl = demoRow.enemy.control
 now = now + 4
