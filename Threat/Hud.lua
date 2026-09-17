@@ -100,21 +100,13 @@ local function CreateRow(index)
     zeroLine:SetPoint("TOP", controlBar, "TOP", 0, -1)
     zeroLine:SetPoint("BOTTOM", controlBar, "BOTTOM", 0, 1)
     zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
-    -- Two-pixel outline: one pixel outside and one in the meter's empty inner
-    -- padding. This preserves the gap to the health strip and avoids its fill.
-    local targetOutline = {}
-    local function Edge(first, second, x, y, horizontal)
-        local edge = controlBar:CreateTexture(nil, "OVERLAY")
-        edge:SetPoint(first, controlBar, first, x, y)
-        edge:SetPoint(second, controlBar, second, horizontal and -x or x, y)
-        if horizontal then edge:SetHeight(2) else edge:SetWidth(2) end
-        edge:SetColorTexture(unpack(TARGET_COLOR))
-        targetOutline[#targetOutline + 1] = edge
-    end
-    Edge("TOPLEFT", "TOPRIGHT", -1, 1, true)
-    Edge("BOTTOMLEFT", "BOTTOMRIGHT", -1, -1, true)
-    Edge("TOPLEFT", "BOTTOMLEFT", -1, 0, false)
-    Edge("TOPRIGHT", "BOTTOMRIGHT", 1, 0, false)
+    -- A short tab meets the meter directly and stays within its right gutter.
+    -- Inset vertically to distinguish selection from the health strip below.
+    local targetCap = controlBar:CreateTexture(nil, "OVERLAY")
+    targetCap:SetPoint("TOPLEFT", controlBar, "TOPRIGHT", 0, -2)
+    targetCap:SetPoint("BOTTOMLEFT", controlBar, "BOTTOMRIGHT", 0, 2)
+    targetCap:SetWidth(CONTROL_RIGHT)
+    targetCap:SetColorTexture(unpack(TARGET_COLOR))
 
     local debuffIcons = {}
     for slot = 1, DEBUFF_LIMIT do
@@ -142,7 +134,7 @@ local function CreateRow(index)
     row.statusBar, row.statusFill = statusBar, statusFill
     row.controlBar, row.controlFill = controlBar, controlFill
     row.zeroLine = zeroLine
-    row.targetOutline = targetOutline
+    row.targetCap = targetCap
     row.debuffIcons, row.debuffOverflow = debuffIcons, debuffOverflow
     rows[index] = row
     return row
@@ -320,7 +312,7 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
     row.enemy = enemy
     local color = COLORS[enemy.severity] or COLORS.safe
     local isCurrentTarget = A.IsCurrentTarget(enemy, currentTargetGuid)
-    for _, edge in ipairs(row.targetOutline) do edge:SetShown(isCurrentTarget) end
+    row.targetCap:SetShown(isCurrentTarget)
     row.rail:SetColorTexture(color[1], color[2], color[3], 1)
     if enemy.raidMarker then
         row.marker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")

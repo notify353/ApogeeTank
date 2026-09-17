@@ -188,47 +188,29 @@ assert(row.height == 24 and row.controlBar.width == 112 and row.controlBar.heigh
 assert(row.enemy.control == 40 and row.controlDirection == "positive")
 assert(row.debuffIcons[1]:IsShown() and row.debuffIcons[1].count.text == "3")
 assert(not row.debuffIcons[2]:IsShown(), "another player's debuff was rendered")
-local function AssertTargetOutline(shown)
-    assert(#row.targetOutline == 4, "selected meter requires four outline edges")
-    for _, edge in ipairs(row.targetOutline) do
-        assert(edge:IsShown() == shown, "outline did not follow selected target")
-    end
-end
-AssertTargetOutline(true)
--- Each two-pixel edge straddles the meter boundary, using its empty inner
--- pixel and extending only one pixel outside. No row-wide or gutter fill.
-local expected = {
-    { "TOPLEFT", "TOPRIGHT", -1, 1, 1, 1 },
-    { "BOTTOMLEFT", "BOTTOMRIGHT", -1, -1, 1, -1 },
-    { "TOPLEFT", "BOTTOMLEFT", -1, 0, -1, 0 },
-    { "TOPRIGHT", "BOTTOMRIGHT", 1, 0, 1, 0 },
-}
-for index, edge in ipairs(row.targetOutline) do
-    local first, second, bounds = edge.points[1], edge.points[2], expected[index]
-    assert(edge.parent == row.controlBar and edge.layer == "OVERLAY"
-        and first[1] == bounds[1] and first[2] == row.controlBar and first[3] == bounds[1]
-        and second[1] == bounds[2] and second[2] == row.controlBar and second[3] == bounds[2]
-        and first[4] == bounds[3] and first[5] == bounds[4]
-        and second[4] == bounds[5] and second[5] == bounds[6]
-        and (index <= 2 and edge.height == 2 or index > 2 and edge.width == 2),
-        "selection outline must frame the meter without covering its fill")
-end
-assert(row.controlBar.points[1][4] + 1 < row.marker.points[1][4],
-    "meter outline overlaps the reserved marker lane")
-local meterBottom = -row.controlBar.points[1][5] + row.controlBar.height
-local healthTop = row.height - row.statusBar.points[1][5] - row.statusBar.height
-assert(meterBottom + 1 <= healthTop,
-    "thicker outline extends into the enemy health strip")
+local cap = row.targetCap
+assert(cap:IsShown() and cap.parent == row.controlBar and cap.layer == "OVERLAY",
+    "selected tab must belong to the threat meter")
+assert(cap.points[1][1] == "TOPLEFT" and cap.points[1][2] == row.controlBar
+    and cap.points[1][3] == "TOPRIGHT" and cap.points[1][4] == 0 and cap.points[1][5] == -2
+    and cap.points[2][1] == "BOTTOMLEFT" and cap.points[2][2] == row.controlBar
+    and cap.points[2][3] == "BOTTOMRIGHT" and cap.points[2][4] == 0 and cap.points[2][5] == 2,
+    "selection tab must attach without a gap and stay inset within meter height")
+assert(cap.width == 7 and row.controlBar.points[1][4] + cap.width == 0
+    and row.controlBar.points[1][4] + cap.width < row.marker.points[1][4],
+    "selection tab must end at the existing gutter edge before the marker lane")
+assert(row.controlBar.height - 4 == 12,
+    "selection tab must remain a compact 12px tall mark")
 
 local originalTarget = tokens.target
 tokens.target = nil
 Event("PLAYER_TARGET_CHANGED")
 Tick(0.1)
-AssertTargetOutline(false)
+assert(not cap:IsShown(), "clearing target retained selection tab")
 tokens.target = originalTarget
 Event("PLAYER_TARGET_CHANGED")
 Tick(0.1)
-AssertTargetOutline(true)
+assert(cap:IsShown(), "retargeting did not restore selection tab")
 
 auraStacks = 5
 Event("UNIT_AURA", "nameplate1")
