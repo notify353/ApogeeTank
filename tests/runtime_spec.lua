@@ -645,7 +645,7 @@ for _, f in ipairs(frames) do
         and f.image and f.image.texture == 8001 then stanceIcon = f end
 end
 assert(stanceIcon and stanceIcon:IsShown() and stanceIcon.points[1][1] == "RIGHT"
-    and stanceIcon.points[1][3] == "LEFT" and stanceIcon.points[1][4] == -6
+    and stanceIcon.points[1][3] == "LEFT" and stanceIcon.points[1][4] == -1
     and stanceIcon.points[1][5] == 0 and stanceIcon.width == 18 and stanceIcon.height == 18
     and not stanceIcon.mouse, "stance slot must retain player-cluster alignment")
 assert(stanceIcon.image.points[1][1] == "TOPLEFT"

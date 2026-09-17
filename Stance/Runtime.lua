@@ -15,7 +15,7 @@ function addon.StartStance(getAnchor)
         if not icon and texture then
             icon = CreateFrame("Frame", nil, anchor)
             icon:SetSize(Style.iconSize, Style.iconSize)
-            icon:SetPoint("RIGHT", anchor, "LEFT", -6, 0)
+            icon:SetPoint("RIGHT", anchor, "LEFT", -1, 0)
             icon:EnableMouse(false)
             icon.image = Style.Icon(icon)
         end
