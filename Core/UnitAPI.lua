@@ -16,13 +16,20 @@ addon.UnitAPI = U
 -- These values never enter snapshots, calculations, discovery or saved data.
 function U.PaintNativeHealth(bar, unit, colorCurve)
     if not U.Exists(unit) then return false end
-    return pcall(function()
+    local painted = pcall(function()
         bar:SetMinMaxValues(0, _G.UnitHealthMax(unit))
         bar:SetValue(_G.UnitHealth(unit))
-        if colorCurve then
-            bar:SetStatusBarColor(colorCurve:EvaluateUnpacked(UnitHealthPercent(unit)))
-        end
     end)
+    if painted and colorCurve then
+        -- Evaluate through the unit API: EvaluateUnpacked cannot accept a
+        -- secret percentage in addon execution, even though native bars can.
+        local colored = pcall(function()
+            local color = UnitHealthPercent(unit, true, colorCurve)
+            bar:SetStatusBarColor(color:GetRGBA())
+        end)
+        if not colored then bar:SetStatusBarColor(0.7, 0.7, 0.7, 1) end
+    end
+    return painted
 end
 
 function U.PaintNativePower(bar, unit)

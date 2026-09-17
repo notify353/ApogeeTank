@@ -133,8 +133,11 @@ Verified generated contracts and exported callers:
   values or aspects are read back.
 - CurveUtilDocumentation.lua, LuaColorCurveObjectAPIDocumentation.lua and
   LuaCurveObjectBaseAPIDocumentation.lua confirm color-curve construction,
-  step interpolation and EvaluateUnpacked. UnitHealthPercent provides the
-  display input. The player's four existing color bands use this native path.
+  step interpolation. Pass the curve directly to UnitHealthPercent(unit, true,
+  curve), then send the returned color's GetRGBA to SetStatusBarColor.
+  Live diagnostics showed EvaluateUnpacked(UnitHealthPercent(unit)) fails in
+  addon execution because its secret argument requires untainted execution.
+  The corrected unit-API transform succeeded in the same live beta session.
 - SharedXML Backdrop.xml, Mainline/SharedUIPanelTemplates.xml,
   SecureScrollTemplates.xml and Shared/Button/CheckButtonTemplates.xml confirm
   all five picker templates. Shared ChatFrameFilters.lua demonstrates
@@ -153,3 +156,17 @@ both TOC startup paths and existing feature regressions. No live Tank beta
 installation, visual parity, protected-frame or party-combat acceptance is
 claimed. See FOREVER_BETA_PLAN.md for the per-feature limits and installation
 approval/rollback plan.
+
+
+### Player health hotfix
+
+On 2026-09-17 live testing found the player health bar missing, including its
+Shift-click picker target. The failed direct curve evaluation was inside the
+same pcall as health painting; its false return hid the entire parent.
+Coloring now uses the verified unit-API transform and a separate failure
+boundary. Optional color failure uses neutral gray. A failed health read hides
+only the native fill; the existing background/click target remains available.
+Era rendering is unchanged. Regression coverage reproduces the rejected curve
+method, color/read failures, recovery, mouse pass-through and picker combat rules.
+The full corrected HUD still needs the user's reload and visual/Shift-click check.
+Group threat behavior remains unverified.

@@ -172,7 +172,10 @@ end
 local function RenderPlayerStatus()
     if not playerHealthBar then return end
     if nativeHealth then
-        playerHealthBar:SetShown(D.UnitAPI.PaintNativeHealth(nativeHealth, "player", healthCurve))
+        nativeHealth:SetShown(D.UnitAPI.PaintNativeHealth(nativeHealth, "player", healthCurve))
+        -- The existing health background is also the picker hit target. Keep
+        -- it available when an optional color or transient health read fails.
+        playerHealthBar:Show()
         playerPowerBar:SetShown(D.UnitAPI.PaintNativePower(nativePower, "player"))
         return
     end

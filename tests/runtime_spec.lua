@@ -731,10 +731,17 @@ C_CurveUtil = { CreateColorCurve = function()
     return {
         SetType = function() end,
         AddPoint = function() end,
-        EvaluateUnpacked = function() return 0.28, 0.74, 0.46, 1 end,
+        EvaluateUnpacked = function() error("Secret arguments require untainted execution") end,
     }
 end }
-function UnitHealthPercent() return secretValue end
+local failHealthColor = false
+local colorQueries = 0
+function UnitHealthPercent(unit, predicted, curve)
+    assert(unit == "player" and predicted == true and curve, "color curve must be passed to unit API")
+    colorQueries = colorQueries + 1
+    if failHealthColor then error("unavailable color") end
+    return { GetRGBA = function() return 0.28, 0.74, 0.46, 1 end }
+end
 ApogeeTankEffectsDB, ApogeeTankCooldownsDB = nil, nil
 tokens.player.health = secretValue
 tokens.target.health = secretValue
@@ -748,6 +755,9 @@ for _, item in ipairs(frames) do
 end
 assert(#nativeBars >= 2 and rawequal(nativeBars[1].barValue, secretValue),
     "beta player health failed native secret delivery")
+assert(colorQueries > 0 and nativeBars[1].barColor[1] == 0.28,
+    "native player health color was not applied")
+assert(nativeBars[1].mouse == false, "native fill intercepts picker clicks")
 local betaPlayerBar = nativeBars[1].parent
 assert(betaPlayerBar:IsShown() and betaPlayerBar.scripts.OnMouseUp,
     "beta lost the player health picker anchor")
@@ -765,10 +775,26 @@ Tick(0.1)
 assert(addon.ThreatObserver.GetSnapshot().total > 0, "readable threat failed to recover")
 combat = false
 Event("PLAYER_REGEN_ENABLED")
+failHealthColor = true
+Event("UNIT_HEALTH", "player")
+Tick(0.1)
+assert(betaPlayerBar:IsShown() and nativeBars[1]:IsShown()
+    and nativeBars[1].barColor[1] == 0.7, "color failure hid health or picker")
+local originalBetaHealth = UnitHealth
+function UnitHealth() error("temporarily unavailable") end
+Event("UNIT_HEALTH", "player")
+Tick(0.1)
+assert(betaPlayerBar:IsShown() and betaPlayerBar.mouse and not nativeBars[1]:IsShown(),
+    "read failure removed picker hit target or retained stale health")
 shiftDown = true
 betaPlayerBar.scripts.OnMouseUp(betaPlayerBar, "LeftButton")
 Tick(0.1)
-assert(named.ApogeeTankEffectsWindow:IsShown(), "beta picker did not open")
+assert(named.ApogeeTankEffectsWindow:IsShown(), "beta picker did not open after read/color failure")
+UnitHealth = originalBetaHealth
+failHealthColor = false
+Event("UNIT_HEALTH", "player")
+Tick(0.1)
+assert(nativeBars[1]:IsShown() and nativeBars[1].barColor[1] == 0.28, "health/color failed to recover")
 combat = true
 Event("PLAYER_REGEN_DISABLED")
 assert(not named.ApogeeTankEffectsWindow:IsShown(), "beta combat left picker open")
