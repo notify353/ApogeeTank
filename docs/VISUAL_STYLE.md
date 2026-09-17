@@ -28,3 +28,20 @@ In-game acceptance remains required:
   zone to confirm the existing dismissal behavior visually.
 
 Mock checks do not establish live appearance or visual parity with Keybinds.
+
+## Selected-enemy rail correction
+
+The reported screenshot came from the client junction targeting the source
+checkout at `6d2b260`, before this styling branch was installed. The migrated
+rail was anchored inside the meters. Although tagged OVERLAY, it belonged to
+the parent row and was covered by the child meter frames, leaving blue fragments
+visible in the gaps. The original Party Health Bars HUD at `2b3bd7e` placed the
+rail at the outer row edge. Its current checkout has removed that module, so
+comparison used read-only Git history.
+
+Restore that outer edge and place the raid marker 2px beyond it. Applied icons
+follow the marker, shifting that accessory lane 7px right while the meters,
+missing reminders and HUD anchor remain fixed. Mock regression checks establish
+non-overlapping bounds and selection clearing/restoration; the previous rail
+placement fails the new geometry assertion. In game, verify a continuous blue
+rail beside both bars when targeting, including marked enemies and active casts.

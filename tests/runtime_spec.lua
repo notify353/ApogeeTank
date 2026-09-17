@@ -186,6 +186,32 @@ assert(row.debuffIcons[1]:IsShown() and row.debuffIcons[1].count.text == "3")
 assert(not row.debuffIcons[2]:IsShown(), "another player's debuff was rendered")
 assert(row.targetIndicator:IsShown())
 
+-- OVERLAY only orders textures within one frame: child meters can still cover
+-- the row's selection texture. Prove the rail occupies a separate gutter.
+local targetRight = row.targetIndicator.points[1][4]
+local targetLeft = targetRight - row.targetIndicator.width
+assert(row.targetIndicator.parent == row
+    and targetLeft > row.controlBar.points[1][4]
+    and targetLeft > row.statusBar.points[1][4],
+    "child meters would occlude the selected-enemy rail")
+assert(row.targetIndicator.points[1][1] == "TOPRIGHT"
+    and row.targetIndicator.points[2][1] == "BOTTOMRIGHT"
+    and row.targetIndicator.points[1][5] == 0
+    and row.targetIndicator.points[2][5] == 0,
+    "selection rail no longer spans the complete enemy row")
+assert(row.marker.points[1][4] > targetRight,
+    "raid marker overlaps the selection gutter")
+
+local originalTarget = tokens.target
+tokens.target = nil
+Event("PLAYER_TARGET_CHANGED")
+Tick(0.1)
+assert(not row.targetIndicator:IsShown(), "clearing target retained selection")
+tokens.target = originalTarget
+Event("PLAYER_TARGET_CHANGED")
+Tick(0.1)
+assert(row.targetIndicator:IsShown(), "retargeting did not restore selection")
+
 auraStacks = 5
 Event("UNIT_AURA", "nameplate1")
 Tick(0.1)
@@ -467,8 +493,8 @@ assert(secondRow and #MissingIcons(secondRow) == 1 and #MissingIcons(row) == 0,
     "two enemies did not have independent coverage")
 assert(secondRow.marker:IsShown() and secondRow.marker.points[1][1] == "LEFT"
     and secondRow.marker.points[1][2] == secondRow
-    and secondRow.marker.points[1][3] == "RIGHT" and secondRow.marker.points[1][4] == -5,
-    "existing raid-marker placement changed")
+    and secondRow.marker.points[1][3] == "RIGHT" and secondRow.marker.points[1][4] == 2,
+    "raid marker did not reserve the selection gutter")
 enemy2Auras = { { sourceUnit = "player", spellId = 7386, name = "Sunder Armor", icon = 10 } }
 Event("UNIT_AURA", "nameplate2")
 Tick(0.1)

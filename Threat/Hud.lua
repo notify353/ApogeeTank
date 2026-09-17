@@ -92,7 +92,8 @@ local function CreateRow(index)
     local controlBar = CreateFrame("Frame", nil, row)
     controlBar:SetPoint("TOPRIGHT", row, "TOPRIGHT", -CONTROL_RIGHT, -1)
     controlBar:SetSize(CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT)
-    marker:SetPoint("LEFT", row, "RIGHT", DEBUFF_ICON_GAP - CONTROL_RIGHT, 0)
+    -- Reserve the row's right gutter for selection; markers and auras follow it.
+    marker:SetPoint("LEFT", row, "RIGHT", DEBUFF_ICON_GAP, 0)
 
     local controlBg = controlBar:CreateTexture(nil, "BACKGROUND")
     controlBg:SetAllPoints(); controlBg:SetColorTexture(unpack(Style.headerColor))
@@ -103,8 +104,10 @@ local function CreateRow(index)
     zeroLine:SetPoint("BOTTOM", controlBar, "BOTTOM", 0, 1)
     zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
     local targetIndicator = row:CreateTexture(nil, "OVERLAY")
-    targetIndicator:SetPoint("TOPRIGHT", row, "TOPRIGHT", -CONTROL_RIGHT, 0)
-    targetIndicator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -CONTROL_RIGHT, 0)
+    -- A parent texture cannot overlay child-frame bars. Keep this rail outside
+    -- both meters, as in the original HUD, so its full height stays visible.
+    targetIndicator:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+    targetIndicator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
     targetIndicator:SetWidth(TARGET_INDICATOR_WIDTH)
     targetIndicator:SetColorTexture(TARGET_COLOR[1], TARGET_COLOR[2], TARGET_COLOR[3], 0.95)
 
