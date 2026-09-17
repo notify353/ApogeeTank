@@ -19,7 +19,12 @@ local function Tooltip(frame, effect, note)
     frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
-function View.Create(model, onChanged, onCleared, canConfigure, onVisibility, cooldowns)
+-- Effects owns the combined picker; callbacks expose only the other feature's
+-- selection operations, never its private frames or event state.
+function View.Create(options)
+    local model, cooldowns = options.Model, options.Cooldowns
+    local onChanged, onCleared = options.OnChanged, options.OnCleared
+    local canConfigure, onVisibility = options.CanConfigure, options.OnVisibility
     local self, lanes, columns = {}, {}, {}
     local window
     local RefreshWindow

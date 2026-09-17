@@ -8,6 +8,7 @@ function addon.StartCooldowns(anchor)
     local stances = {}
     local elapsed = 0
     local inCombat = false
+    local initializationFailed = false
     local function UpdateStances()
         stances = addon.CooldownAPI.GetStanceSpells()
         for id in pairs(stances) do
@@ -80,9 +81,17 @@ function addon.StartCooldowns(anchor)
         Refresh()
     end
     driver:SetScript("OnEvent", function(_, event, unit, _, id)
+        if initializationFailed then return end
         if event == "PLAYER_LOGIN" then
             inCombat = UnitAffectingCombat("player") == true
-            model = addon.ObservedSpellList.Create(ApogeeTankCooldownsDB)
+            local reason
+            model, reason = addon.ObservedSpellList.Create(ApogeeTankCooldownsDB)
+            if not model then
+                initializationFailed = true
+                driver:Hide()
+                print("Apogee Tank: Cooldown tracking disabled. " .. reason)
+                return
+            end
             ApogeeTankCooldownsDB = model.GetSaved()
             view = addon.CooldownView.Create(anchor)
             UpdateStances()

@@ -1,7 +1,7 @@
 # Tank visual style
 
 `UI/Style.lua` owns the palette, icon crop/insets and typography used by the
-threat HUD, missing reminders, cooldown view and shared picker. It is local to
+threat HUD, missing reminders, cooldown view, stance icon and shared picker. It is local to
 Tank; Apogee Keybinds is a read-only design reference, not a runtime dependency.
 
 Combat slots remain 18px with 2px gaps and a 1px inset (16px artwork). This keeps
@@ -9,6 +9,14 @@ the ten-enemy layout, four missing reminders, six applied effects and overflow
 within their existing footprint. The picker uses 24px slots with 2px insets,
 18px header strips, 9px headings and 24px-high action buttons. Enemy rows remain
 24px high; severity colors, target indication and fixed HUD anchors are unchanged.
+
+The final selected-enemy treatment is the original 3px-wide, full-row-height
+baby-blue rail at 95% opacity, with a deliberate 4px gap from the meter. Enemy
+names remain over the world with no full-row background. Stance and cooldown
+slots are 18px and sit 1px from the left and right of the player-status cluster;
+cooldowns retain 2px gaps between slots. These accepted dimensions are retained
+through the code-quality cleanup; rejected perimeter and end-cap experiments
+are not part of the current rendering code.
 
 Local validation: `pwsh ./scripts/test-local.ps1` exercises the TOC, mock UI,
 selection persistence, combat restrictions, independent clear confirmations,

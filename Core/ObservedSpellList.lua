@@ -1,22 +1,27 @@
--- No spell catalog: exact aura identities come only from observed game data.
--- Observe/GetMissing receive only player-owned auras from the read boundary.
+-- Shared exact spell identities, selections and character persistence.
+-- Features decide what observations qualify and how selections are used.
 local _, addon = ...
 local Model = {}
 addon.ObservedSpellList = Model
+local SCHEMA_VERSION = 2
 
 local function Identity(effect)
     if type(effect) ~= "table" then return nil end
     local id = tonumber(effect.spellId)
     if not id or id <= 0 or id ~= math.floor(id) then return nil end
-    local name = type(effect.name) == "string" and effect.name or ("Effect " .. id)
+    local name = type(effect.name) == "string" and effect.name or ("Spell " .. id)
     local icon = effect.icon
     if type(icon) ~= "number" and type(icon) ~= "string" then icon = nil end
     return { spellId = id, name = name, icon = icon }
 end
 
 function Model.Create(saved)
+    local version = type(saved) == "table" and tonumber(saved.version)
+    if version and version > SCHEMA_VERSION then
+        return nil, "Saved data is newer than this addon. Update Apogee Tank to use it; your data was preserved."
+    end
     local watched, ignored = {}, {}
-    local store = { version = 2, watched = {}, ignored = {} }
+    local store = { version = SCHEMA_VERSION, watched = {}, ignored = {} }
     if type(saved) == "table" and type(saved.watched) == "table" then
         for _, raw in ipairs(saved.watched) do
             local effect = Identity(raw)
@@ -56,9 +61,9 @@ function Model.Create(saved)
         -- Preserve the table owned by SavedVariables while clearing its contents.
         store.watched, store.ignored = {}, {}
     end
-    function self.Observe(auras)
-        for _, aura in ipairs(auras or {}) do
-            local effect = Identity(aura)
+    function self.Observe(spells)
+        for _, spell in ipairs(spells or {}) do
+            local effect = Identity(spell)
             if effect then
                 local id = effect.spellId
                 if watched[id] then
@@ -90,7 +95,7 @@ function Model.Create(saved)
         end
         if watched[id] then return true end
         local effect = ignored[id]
-        if not effect then return false, "Observe this effect on a target first." end
+        if not effect then return false, "Observe this spell before selecting it." end
         effect = Identity(effect)
         revision = revision + 1
         ignored[id] = nil
@@ -101,12 +106,16 @@ function Model.Create(saved)
         store.watched[#store.watched + 1] = effect
         return true
     end
-    function self.GetEntries()
-        local entries, remaining = {}, {}
+    function self.GetWatched()
+        local entries = {}
         for _, effect in ipairs(store.watched) do
             local entry = Identity(effect); entry.watched = true
             entries[#entries + 1] = entry
         end
+        return entries
+    end
+    function self.GetEntries()
+        local entries, remaining = self.GetWatched(), {}
         for _, effect in ipairs(store.ignored) do
             remaining[#remaining + 1] = Identity(effect)
         end
@@ -116,16 +125,6 @@ function Model.Create(saved)
         end)
         for _, effect in ipairs(remaining) do entries[#entries + 1] = effect end
         return entries
-    end
-    function self.GetMissing(auras, validTarget)
-        local result = {}
-        if not validTarget or auras == nil then return result end
-        local present = {}
-        for _, aura in ipairs(auras) do present[aura.spellId or false] = true end
-        for _, effect in ipairs(store.watched) do
-            if not present[effect.spellId] then result[#result + 1] = Identity(effect) end
-        end
-        return result
     end
     return self
 end

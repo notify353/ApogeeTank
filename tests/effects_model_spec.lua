@@ -2,6 +2,20 @@ local addon = {}
 assert(loadfile("Core/ObservedSpellList.lua"))("ApogeeTank", addon)
 assert(loadfile("Effects/Model.lua"))("ApogeeTank", addon)
 local Model = addon.EffectsModel
+local future = { version = 99, watched = { { spellId = 1 } }, futureField = true }
+local unsupported, reason = Model.Create(future)
+assert(unsupported == nil and reason and future.version == 99 and future.futureField,
+    "future effects schema was accepted or mutated")
+assert(addon.ObservedSpellList.Create(future) == nil,
+    "shared selection loader accepted a future schema")
+assert(addon.ObservedSpellList.Create(nil).GetMissing == nil,
+    "effect coverage policy leaked into the shared selection model")
+local neutral = addon.ObservedSpellList.Create(nil)
+neutral.Observe({ { spellId = 1, name = "Observed spell" } })
+local selected = neutral.GetWatched()
+selected[1].name = "Changed copy"
+assert(neutral.GetWatched()[1].name == "Observed spell",
+    "watched-list copies exposed mutable stored identities")
 local model = Model.Create(nil)
 assert(#model.GetEntries() == 0 and #model.GetSaved().watched == 0)
 assert(not model.SetWatched(123, true), "unobserved identity was selectable")

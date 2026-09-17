@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Recover unavailable aura reads on the next coalesced refresh while caching
+  successful empty results. Preserve future-version character lists without
+  rewriting them; disable affected tracking with one explanatory message.
+- Keep missing-effect policy in Effects, shared selection persistence in Core,
+  use named picker dependencies, and remove unused refresh/color entry points.
+- Rewrite usage and architecture documentation around the current independent
+  addon, its public contracts and accepted visual layout.
+
 - Place Debuffs on the left and Cooldowns on the right in settings.
 
 - Coalesce player-bar updates with the HUD refresh, sleep the threat update

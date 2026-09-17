@@ -117,7 +117,9 @@ local function NormalizeDebuff(aura)
 end
 
 local function CacheDebuffDisplay(guid, slots, overflow, playerAuras)
-    if guid then
+    -- Retry unavailable reads on the next coalesced threat refresh. Successful
+    -- empty lists are cached normally; unknown must never become absence.
+    if guid and playerAuras ~= nil then
         debuffDisplayByGuid[guid] = { slots = slots, overflow = overflow, playerAuras = playerAuras }
     end
     return slots, overflow, playerAuras
@@ -249,12 +251,6 @@ end
 
 local STATIC_SOURCES = {}
 AddStaticSources(STATIC_SOURCES)
-
-function O.IsObservedUnit(unit)
-    if type(unit) ~= "string" then return false end
-    if nameplateUnits[unit] then return true end
-    return STATIC_SOURCES[unit] == true
-end
 
 function O.InvalidateAuras(unit)
     if type(unit) ~= "string" then return end

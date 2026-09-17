@@ -481,7 +481,7 @@ local function Render(snapshot, presentation)
     local height = PLAYER_SECTION_HEIGHT + displayedRows * (ROW_HEIGHT + ROW_GAP)
         + (hasFooter and FOOTER_HEIGHT or 5)
     frame:SetSize(WIDTH, height)
-    frame:SetShown(A.ShouldShow())
+    frame:Show()
     if rowsChanged then rowsChanged() end
 end
 
@@ -510,32 +510,6 @@ function A.SetPlayerClickHandler(handler)
     playerClickHandler = handler
     if playerHealthBar then playerHealthBar:EnableMouse(handler ~= nil) end
 
-end
-
-function A.RefreshPlayer()
-    if not frame or not frame:IsShown() then return false end
-    RenderPlayerStatus()
-    return true
-end
-
-
-function A.RefreshUnit(unit)
-    if not frame or not frame:IsShown() or not D.UnitAPI then return false end
-    local guid = D.UnitAPI.GetGUID(unit)
-    if not guid then return false end
-    local matchedRow
-    for _, row in ipairs(rows) do
-        if row.enemy and row.enemy.guid == guid then matchedRow = row; break end
-    end
-    if not matchedRow then return false end
-    local health, healthMaximum, healthValid = D.UnitAPI.GetHealth(unit)
-    local cast = D.UnitAPI.GetCast(unit)
-    local enemy = matchedRow.enemy
-    enemy.unit = unit
-    enemy.health, enemy.healthMaximum = health, healthMaximum
-    enemy.healthValid, enemy.cast = healthValid == true, cast
-    RenderStatusBar(matchedRow, enemy, D.Now())
-    return true
 end
 
 function A.Tick(elapsed)
@@ -579,8 +553,6 @@ function A.Refresh()
     Render(snapshot, presentation)
     return snapshot
 end
-
-function A.ShouldShow() return true end
 
 function A.Hide() if frame then frame:Hide() end end
 
@@ -640,10 +612,6 @@ function A.Initialize(deps)
             and D.UnitAPI
             and D.UnitBar and D.UnitBar.GetHealthColor,
         "ThreatAwareness missing dependencies")
-end
-
-function A.GetPlayerHealthColor(progress)
-    return D.UnitBar.GetHealthColor(progress)
 end
 
 function A.GetFrame() return frame end

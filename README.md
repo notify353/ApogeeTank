@@ -1,184 +1,113 @@
 # Apogee Tank
 
-A standalone, fixed multi-enemy threat HUD for **WoW Classic Era 1.15.9 (11509)**.
-Extracted from Apogee Party Health Bars with the existing appearance and threat
-behavior preserved. No dependency on that addon, profiles, key bindings, or
-minimap button. The only configurable feature is a small character-owned
-observed-effect watch list.
+A small independent threat HUD for **WoW Classic Era 1.15.9 (interface 11509)**.
+It uses fixed placement and behavior for everyone. There are no profiles, key
+bindings, minimap controls or dependencies on other Apogee addons.
 
-## Included
+## Combat HUD
 
-- Ten stable enemy rows, directional threat lead/recovery meters, original
-  severity colors, current-target highlight, and existing raid-marker display.
-- Enemy health strips, cast/channel progress, and protected-cast coloring.
-- Six player-applied debuff slots per enemy, rank-aware class columns, stack
-  counts, expiration pulses, and debuff overflow.
-- Compact player health and active power above the threat meters.
-- Lost-enemy promotion, enemy overflow, and short last-seen retention.
+- Ten stable enemy rows with directional threat lead/recovery meters, severity
+  colors, the original thin baby-blue selected-enemy rail and enemy health or
+  cast/channel progress.
+- Four missing-effect reminders left of each meter, with overflow. Six applied
+  debuff slots on the right retain the original rank-aware class columns, stack
+  counts, expiration pulses and overflow. A reserved raid-marker slot separates
+  the meter from applied effects; the addon never assigns markers.
+- Player health/power remain visible outside combat. The active stance sits
+  1px left of that cluster, and up to six watched cooldown icons sit 1px right
+  during combat. Icons retain 2px spacing between slots.
 
-Everyone gets the same placement, scale, thresholds, and update cadence. The
-player strip stays visible outside combat; enemy rows appear during combat.
-The HUD is passive: it never targets, casts, assigns markers, changes bindings,
-or changes nameplate preferences. Enable enemy nameplates in WoW for broad pack
-coverage. Without them, observation is limited to available target chains,
-focus, and mouseover. It measures the player's threat against observed party
-members and pets; it is not a raid-wide threat meter.
+The HUD never targets, casts or changes nameplate preferences. Enable enemy
+nameplates for broad pack coverage; available target chains, focus and mouseover
+provide fallback observation. Threat compares the player with observed party
+members and pets, not an entire raid. Lost enemies briefly retain a last-seen
+warning; known dead enemies and expired history are removed.
 
-## Effects to watch
+## Debuffs and cooldowns to watch
 
-1. Apply a debuff to a living enemy you are targeting. Only effects applied by
-   your character are discovered and automatically checked for watching;
-   other players' and pets' effects are ignored.
-2. Out of combat, **Shift-left-click Apogee Tank's player health bar** to open
-   the compact checklist. Uncheck an effect to stop
-   watching it, or check it again to resume. There are no titles, instructions,
-   counters, or footer in the window.
-3. Each displayed living enemy gets its own missing-effect icons immediately
-   left of its threat meter. Once your own application is present, the missing icon
-   disappears and the existing applied-debuff display shows it on the right.
-   Another player's application does not clear the reminder, even with the same
-   effect ID. The player health/power strip no longer has missing-effect icons.
+**Shift-left-click the player health bar outside combat** to open the combined
+picker: Debuffs on the left, Cooldowns on the right, each with independent
+scrolling. There are compact column headings but no window title or footer.
+Hover list entries for native spell tooltips. The normal HUD has no tooltips.
 
-Missing effects are evaluated separately for every visible enemy, including
-off-target enemies. Four icons fit beside each meter; a `+N` count indicates
-additional missing effects without overlapping adjacent rows. The complete
-owned-aura snapshot determines coverage, including effects beyond the right
-lane's visible slots. No reminders remain for stale/dead/unavailable enemies
-or after their rows disappear on combat exit.
+Debuffs are learned when your character applies them to a living hostile target.
+New identities are checked automatically. Each visible enemy is then evaluated
+independently using its complete player-owned aura list. Another player's or
+pet's application does not clear your reminder. Unknown reads produce no missing
+claim and are retried on the next coalesced threat refresh; successful empty
+reads are cached like other successful snapshots.
 
-Raid-marker **display** sits immediately right of each enemy bar in a reserved
-space, before applied debuffs. Missing effects remain left of the threat meter. Automatic marking and Dungeon Guide marker assignment were
-not extracted; Apogee Tank never sets or clears raid markers.
+Cooldowns are learned after a successful player cast when the client confirms a
+real cooldown or charge recharge. Global cooldowns alone do not qualify. There
+are no duration guesses or spell catalog. Discovery candidates expire after ten
+seconds, so cooldowns that start much later may need another use to be learned.
+Stance/form spells are excluded using the client-provided stance bar. Items,
+pets and passive procs are not tracked.
 
-Learned effect identities (ID, name, icon) and unchecked choices survive reloads,
-separately for each character. Applying an unchecked effect again leaves it off.
-Existing selections from the earlier manual-selection version are preserved.
-The list remains available without a target. There is no watch-list selection
-limit; each row uses visible overflow for long reminder lists. Escape or the
-close button dismisses the picker.
-Combat blocks opening and automatically closes the picker. Normal clicks and
-other button/modifier combinations do nothing. A queued opening is cancelled
-when combat begins and is not reopened afterward. There is no slash command.
+Cooldown icons show remaining seconds (rounded up to minutes for long timers),
+available charges, or a bright ready state. Unknown/held state is dimmed with a
+question mark. Sampling follows events; animation renders cached state.
 
-**Clear All** forgets this character's watched effects and unchecked choices,
-immediately empties the list and reminders, and resets its scroll position.
-Learning resumes with the next target/aura observation during gameplay;
-simply opening or closing the cleared window does not repopulate it.
+Uncheck an entry to stop watching it. Reobservation and reload preserve that
+choice. Identity is the exact spell ID: ranks and similarly named spells are
+not merged, and missing reminders have no stack targets or expiry policy.
+The applied-debuff column catalog is separate from this learned selection model.
 
-This feature contains no predefined spell catalog, spell-to-debuff mapping,
-rank equivalence, stack target, expiration warning, immunity prediction, or
-cast recommendation. It checks exact effect presence only. A new rank or a
-different effect with the same name is learned separately when observed; uncheck
-older ranks if you no longer want reminders for them. Hover an entry to inspect
-its effect ID. Unknown aura state produces no missing claim.
-The original per-enemy threat HUD debuff columns retain their separate fixed
-catalog and player-owned display policy.
+Each column's **Clear** reveals **Confirm clear**. Confirmation forgets only
+that list's learned selections and opt-outs. Cancel or closing the window
+abandons the reset. Cleared debuffs resume learning on a later gameplay
+observation; cleared cooldowns require later casts. Opening the window alone
+does not repopulate either list.
 
-Ability cooldown lanes, party frames, actions, dungeon guides, and broader
-maintained-effect suggestions remain outside this scope.
+The window can be dragged for the session. While it is open, an animated enemy
+demo illustrates threat, markers and effects using selected or sample artwork.
+Synthetic data is never learned or saved. Closing, combat or zoning ends the
+demo. Combat also blocks the shortcut, closes the picker and cancels pending
+opens. There are no slash commands or additional modifier shortcuts.
 
-## Development installation
+## Character data and compatibility
 
-WoW Forever beta support is planned alongside Era. Preparation and acceptance
-criteria are recorded in [the beta compatibility plan](docs/FOREVER_BETA_PLAN.md).
-The current runtime still supports only Classic Era; beta compatibility has not
-yet been verified.
+Only the debuff and cooldown watch lists persist, in separate character-owned
+SavedVariables. Version-1 selections migrate to version 2. If either saved list
+comes from a newer addon schema, it is preserved untouched and its feature is
+disabled with one explanatory chat message. A newer debuff store also disables
+the combined picker, which Effects owns; a healthy cooldown tracker still runs.
+A newer cooldown store leaves the debuff picker usable. Install a compatible
+addon version to use the preserved data; the addon does not reset it for you.
 
-The Classic Era AddOns junction points at this checkout. Reload after code
-changes. Apogee Party Health Bars is unchanged; if its Threat Control is also
-enabled, the two HUDs occupy the same position. Disable its Threat Control
-manually when testing this standalone version.
+Only Classic Era is enabled. [Forever beta preparation](docs/FOREVER_BETA_PLAN.md)
+describes deferred work; it is not a compatibility claim. Client-specific API
+evidence and the export checker are described in [API reference](docs/API_REFERENCE.md).
 
-The previously created Anniversary junction remains, but Anniversary is not
-supported: the TOC declares only Era, and the runtime refuses other clients
-even when loading out-of-date addons. No future WoW client support is claimed.
+## Development and validation
 
-## Validate
+Load the repository as `Interface/AddOns/ApogeeTank` in an authorized Era test
+installation. This repository does not create or alter client junctions. After
+an approved installation change, `/reload` loads the new code. Avoid enabling
+two overlapping Threat Control HUDs when comparing the original design.
 
-With Lua 5.1 and PowerShell installed, run:
+With Lua 5.1 and PowerShell available:
 
 ```powershell
 pwsh ./scripts/test-local.ps1
 ```
 
-The tests check observer behavior, presentation calculations, standalone TOC
-loading, events, aura ownership, combat transitions, client gating, observed
-effect discovery, watch-list persistence, selection UI, and missing reminders. They
-cannot prove actual in-game rendering or server threat availability.
+This runs Lua parsing, TOC checks, model/observer/runtime/geometry regressions,
+export-checker fixtures and whitespace validation. To check the actual local
+client export, also run `pwsh ./scripts/check-wow-api-export.ps1` on that machine.
+Mocks do not establish pixel rendering, live event ordering or server threat
+availability.
 
-In Classic Era, check solo login, a multi-enemy party pull, threat loss/recovery,
-target switching, enemy casts/channels, debuff stacks/expiration, death,
-nameplate toggles, combat exit, zoning, and reload during combat. Compare the
-HUD appearance with the original using one enabled HUD at a time.
-For the watch list, apply a debuff and confirm automatic selection, then switch
-to an enemy missing it. Confirm another player's application does not clear the
-reminder. Uncheck it, reload, and apply it again to verify it stays off. Use
-Clear All to erase the choices, then verify learning starts fresh. Confirm no
-reminder on dead/friendly targets. Test two enemies with different coverage,
-an off-target aura update, row removal/reuse, and an existing raid marker.
-Check Shift-left-click outside combat; the health bar has no hover tooltip. Verify
-ordinary clicks do nothing, combat closes the picker, combat clicks cannot open
-it, and combat exit restores the shortcut without reopening the window.
+In game, check login/reload in and out of combat, target switching, a multi-enemy
+party pull, threat loss/recovery, casts/channels, aura ownership and expiry,
+nameplate removal, death, zoning and combat exit. Verify persistent unchecks,
+both independent clear confirmations, picker restrictions, demo cleanup, stance
+switches, and cooldown learning/countdown/readiness. Use the accepted appearance
+in [visual style](docs/VISUAL_STYLE.md) as the layout baseline.
 
-## Ownership
+For module ownership, public contracts and adding a small feature, see
+[architecture](docs/ARCHITECTURE.md). The [code review and resolution record](docs/CODE_QUALITY_REVIEW.md)
+explains the bounded reliability and clarity improvements.
 
-- `Core/UnitAPI.lua`: the narrow unit/casting/power compatibility boundary and colors.
-- `Core/Auras.lua`: shared harmful-aura read boundary; unavailable is distinct from empty.
-- `Threat/DebuffData.lua`: fixed class-specific debuff columns.
-- `Threat/Observer.lua`: enemy observation and threat snapshots.
-- `Threat/Hud.lua`: the original presentation, stripped of settings and demos.
-- `Threat/Runtime.lua`: threat events, aura ownership, and one update driver.
-- `Effects/Model.lua`: session discoveries, character watch list, and exact presence rules.
-- `Effects/View.lua`: fixed picker window and passive missing-effect icons.
-- `Effects/Runtime.lua`: effect feature events, persistence, and combat-gated picker access;
-  per-enemy coverage via the HUD's public row snapshots.
-- `ApogeeTank.lua`: Era gate and composition through the HUD's public row contract.
-
-Source provenance and authoritative API references are in `docs/API_REFERENCE.md`.
-MIT licensed; original copyright retained in `LICENSE`.
-
-Opening the checklist also shows an animated, labeled demo of enemy threat,
-markers, and missing/applied effects. Drag the window background to move it
-aside; its position is session-only. Watched effects supply the demo icons,
-or labeled sample icons appear when the list is empty. Demo data is never
-learned or saved. Closing the window or entering combat removes the demo.
-
-## Learned cooldowns
-
-The Shift-left-click picker shows Debuffs on the left and Cooldowns on the right.
-Successful player spell casts are candidates for automatic learning. A real
-cooldown or charge recharge reported by the Era API adds the spell, checked by
-default. Global cooldowns alone do not qualify. Unchecks persist per character;
-Each column has its own Clear button. It reveals a separate Confirm clear button;
-Cancel or closing the window abandons the reset.
-
-Up to six watched cooldown icons sit right of the player health bar, with a
-count for additional selections. Icons show remaining seconds (rounded up to
-minutes for long timers), available charges, or a bright ready state. Unknown
-or held cooldown state is dimmed with a question mark. Timers are event-driven;
-only their displayed countdown updates between events. No spell catalog or
-fixed spell durations are used. Spell IDs/ranks remain separate. Items, pets,
-passive procs, and abilities never successfully cast by the player are outside
-this first version. Discovery waits up to ten seconds for cooldown events after
-a cast; cooldowns that begin much later may need another use to be discovered.
-If the client does not provide authoritative global-cooldown classification,
-non-charge spells are not inferred from duration guesses. Only Classic Era is
-supported. Reload after installation, use a cooldown, and check learning,
-countdown, readiness, uncheck persistence, and each list's independent Clear All.
-
-`Core/ObservedSpellList.lua` owns the shared identity/selection persistence model;
-`Core/Cooldowns.lua` is the cooldown API boundary. `Cooldowns/` owns cooldown
-observation and display; the existing picker selects between the two models.
-
-Cooldown learning excludes spells on the client stance/form bar. Already learned
-entries in that category are removed automatically; no stance spell catalog is used.
-
-The picker uses two independently scrolling columns with compact headings and
-a subtle divider. Reset controls sit below the lists, require a separate
-confirmation click, and remain blocked in combat. Dragging and HUD demo remain.
-
-The normal HUD has no tooltips. Native spell tooltips are available only inside
-the settings lists. Reminder icons and overflow counts do not intercept the mouse.
-
-Cooldown HUD icons and overflow appear only in combat. Learning continues outside
-combat, and saved selections remain available in settings; health and power stay visible.
+MIT licensed; original copyright and provenance retained in `LICENSE` and the
+API reference. Reference addons remain independent.

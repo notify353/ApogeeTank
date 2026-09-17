@@ -48,8 +48,9 @@ References under `Blizzard_APIDocumentationGenerated`:
 The observed-effect feature shares the indexed harmful-aura read boundary and
 filters sourceUnit with UnitIsUnit(sourceUnit, "player") for both discovery and
 coverage. Player aliases count; other players, pets, and unknown casters do not.
-UNIT_AURA, target changes, health, faction, flags, and world transitions trigger
-coalesced reads. Unknown reads never become absence assertions. Only the
+UNIT_AURA, target changes, and world transitions request discovery; health,
+faction and flag events refresh presentation without discovery reads. Unknown
+reads never become absence assertions. Only the
 learned effect identities and explicit opt-outs persist through a character-specific
 SavedVariable. New own effects are automatically watched. Clear All mutates this
 saved table in place and cancels pending discovery until the next gameplay event.
@@ -59,7 +60,9 @@ player-owned aura set through the HUD's public row snapshot/callback contract.
 They do not infer absence from the six visible right-side icons. Aura read
 unavailability remains nil, distinct from a successful empty read. Row changes
 refresh the accessory synchronously to avoid carrying one enemy's reminders
-onto a recycled row; no additional per-enemy aura polling is introduced.
+onto a recycled row. Successful reads, including empty lists, are cached until
+invalidated. Unavailable reads retry on the existing coalesced threat refresh;
+there is no additional per-enemy polling driver.
 
 Picker access is a plain mouse-up handler on the existing player health bar,
 not a saved key binding or secure action. Only Shift-left-click without Ctrl/Alt

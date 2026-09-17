@@ -6,10 +6,12 @@ function addon.StartEffects(deps)
     local dirty, elapsedSinceEvent = false, 0
     local needsObservation = false
     local inCombat = false
+    local initializationFailed = false
     local function CanConfigure()
         return not inCombat and not InCombatLockdown() and not UnitAffectingCombat("player")
     end
     local function RequestRefresh(observe)
+        if initializationFailed then return end
         if observe == true then needsObservation = true end
         dirty = true
         driver:Show()
@@ -31,14 +33,19 @@ function addon.StartEffects(deps)
         if not model then return end
         UpdateAccess()
         if not view then
-            view = addon.EffectsView.Create(model, RequestRefresh, function()
-                -- A clear must stay empty until a new gameplay observation,
-                -- rather than immediately rediscovering the unchanged target.
-                dirty, pendingToggle, needsObservation = false, false, false
-                driver:Hide()
-            end, CanConfigure, function(shown)
-                deps.SetDemo(shown, model.GetEntries)
-            end, deps.Cooldowns)
+            view = addon.EffectsView.Create({
+                Model = model, Cooldowns = deps.Cooldowns,
+                OnChanged = RequestRefresh, CanConfigure = CanConfigure,
+                OnCleared = function()
+                    -- Stay empty until a new gameplay observation, rather than
+                    -- immediately rediscovering the unchanged target.
+                    dirty, pendingToggle, needsObservation = false, false, false
+                    driver:Hide()
+                end,
+                OnVisibility = function(shown)
+                    deps.SetDemo(shown, model.GetEntries)
+                end,
+            })
         end
         if needsObservation then
             local valid = UnitExists("target") and UnitCanAttack("player", "target")
@@ -62,8 +69,17 @@ function addon.StartEffects(deps)
         driver:Hide()
     end
     driver:SetScript("OnEvent", function(_, event, unit)
+        if initializationFailed then return end
         if event == "PLAYER_LOGIN" and not model then
-            model = addon.EffectsModel.Create(ApogeeTankEffectsDB)
+            local reason
+            model, reason = addon.EffectsModel.Create(ApogeeTankEffectsDB)
+            if not model then
+                initializationFailed = true
+                deps.SetPlayerClickHandler(nil)
+                driver:Hide()
+                print("Apogee Tank: Debuff reminders and picker disabled. " .. reason)
+                return
+            end
             ApogeeTankEffectsDB = model.GetSaved()
         elseif event == "PLAYER_ENTERING_WORLD" then
             inCombat = UnitAffectingCombat("player") == true
