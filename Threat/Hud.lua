@@ -24,7 +24,7 @@ local COLORS = {
     safe = { 0.25, 0.85, 0.35 }, slipping = { 1.00, 0.82, 0.15 },
     critical = { 1.00, 0.35, 0.08 }, lost = { 1.00, 0.10, 0.10 },
 }
-local TARGET_COLOR = { 0.88, 0.91, 0.94, 0.8 }
+local TARGET_COLOR = { 0.38, 0.72, 0.92, 0.8 }
 local CAST_COLOR = { 1.00, 0.68, 0.12 }
 local PROTECTED_CAST_COLOR = { 0.58, 0.58, 0.62 }
 local D, frame, overflowLabel, playerStatusAnchor, playerHealthFill, playerPowerFill
