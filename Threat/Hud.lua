@@ -24,7 +24,7 @@ local COLORS = {
     safe = { 0.25, 0.85, 0.35 }, slipping = { 1.00, 0.82, 0.15 },
     critical = { 1.00, 0.35, 0.08 }, lost = { 1.00, 0.10, 0.10 },
 }
-local TARGET_COLOR = { 0.38, 0.72, 0.92, 0.8 }
+local TARGET_COLOR = { 0.38, 0.72, 0.92, 0.95 }
 local CAST_COLOR = { 1.00, 0.68, 0.12 }
 local PROTECTED_CAST_COLOR = { 0.58, 0.58, 0.62 }
 local D, frame, overflowLabel, playerStatusAnchor, playerHealthFill, playerPowerFill
@@ -100,13 +100,13 @@ local function CreateRow(index)
     zeroLine:SetPoint("TOP", controlBar, "TOP", 0, -1)
     zeroLine:SetPoint("BOTTOM", controlBar, "BOTTOM", 0, 1)
     zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
-    -- A short tab meets the meter directly and stays within its right gutter.
-    -- Inset vertically to distinguish selection from the health strip below.
-    local targetCap = controlBar:CreateTexture(nil, "OVERLAY")
-    targetCap:SetPoint("TOPLEFT", controlBar, "TOPRIGHT", 0, -2)
-    targetCap:SetPoint("BOTTOMLEFT", controlBar, "BOTTOMRIGHT", 0, 2)
-    targetCap:SetWidth(CONTROL_RIGHT)
-    targetCap:SetColorTexture(unpack(TARGET_COLOR))
+    -- Original Health Bars rail: full row height with a deliberate 4px gap
+    -- from the meters. Keep it outside child frames so they cannot obscure it.
+    local targetIndicator = row:CreateTexture(nil, "OVERLAY")
+    targetIndicator:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
+    targetIndicator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
+    targetIndicator:SetWidth(3)
+    targetIndicator:SetColorTexture(unpack(TARGET_COLOR))
 
     local debuffIcons = {}
     for slot = 1, DEBUFF_LIMIT do
@@ -134,7 +134,7 @@ local function CreateRow(index)
     row.statusBar, row.statusFill = statusBar, statusFill
     row.controlBar, row.controlFill = controlBar, controlFill
     row.zeroLine = zeroLine
-    row.targetCap = targetCap
+    row.targetIndicator = targetIndicator
     row.debuffIcons, row.debuffOverflow = debuffIcons, debuffOverflow
     rows[index] = row
     return row
@@ -312,7 +312,7 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
     row.enemy = enemy
     local color = COLORS[enemy.severity] or COLORS.safe
     local isCurrentTarget = A.IsCurrentTarget(enemy, currentTargetGuid)
-    row.targetCap:SetShown(isCurrentTarget)
+    row.targetIndicator:SetShown(isCurrentTarget)
     row.rail:SetColorTexture(color[1], color[2], color[3], 1)
     if enemy.raidMarker then
         row.marker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")

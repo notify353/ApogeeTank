@@ -188,29 +188,33 @@ assert(row.height == 24 and row.controlBar.width == 112 and row.controlBar.heigh
 assert(row.enemy.control == 40 and row.controlDirection == "positive")
 assert(row.debuffIcons[1]:IsShown() and row.debuffIcons[1].count.text == "3")
 assert(not row.debuffIcons[2]:IsShown(), "another player's debuff was rendered")
-local cap = row.targetCap
-assert(cap:IsShown() and cap.parent == row.controlBar and cap.layer == "OVERLAY",
-    "selected tab must belong to the threat meter")
-assert(cap.points[1][1] == "TOPLEFT" and cap.points[1][2] == row.controlBar
-    and cap.points[1][3] == "TOPRIGHT" and cap.points[1][4] == 0 and cap.points[1][5] == -2
-    and cap.points[2][1] == "BOTTOMLEFT" and cap.points[2][2] == row.controlBar
-    and cap.points[2][3] == "BOTTOMRIGHT" and cap.points[2][4] == 0 and cap.points[2][5] == 2,
-    "selection tab must attach without a gap and stay inset within meter height")
-assert(cap.width == 7 and row.controlBar.points[1][4] + cap.width == 0
-    and row.controlBar.points[1][4] + cap.width < row.marker.points[1][4],
-    "selection tab must end at the existing gutter edge before the marker lane")
-assert(row.controlBar.height - 4 == 12,
-    "selection tab must remain a compact 12px tall mark")
+local indicator = row.targetIndicator
+assert(indicator:IsShown() and indicator.parent == row and indicator.layer == "OVERLAY",
+    "original selected rail must belong to the row")
+assert(indicator.points[1][1] == "TOPRIGHT" and indicator.points[1][2] == row
+    and indicator.points[1][3] == "TOPRIGHT" and indicator.points[1][4] == 0 and indicator.points[1][5] == 0
+    and indicator.points[2][1] == "BOTTOMRIGHT" and indicator.points[2][2] == row
+    and indicator.points[2][3] == "BOTTOMRIGHT" and indicator.points[2][4] == 0 and indicator.points[2][5] == 0
+    and indicator.width == 3 and row.height == 24,
+    "original selected rail must remain 3px wide across the full 24px row")
+local railLeft = indicator.points[1][4] - indicator.width
+assert(railLeft - row.controlBar.points[1][4] == 4
+    and railLeft - row.statusBar.points[1][4] == 4
+    and indicator.points[1][4] < row.marker.points[1][4],
+    "original rail gap must keep it clear of child meters and marker lane")
+assert(indicator.color[1] == 0.38 and indicator.color[2] == 0.72
+    and indicator.color[3] == 0.92 and indicator.color[4] == 0.95,
+    "original baby-blue rail color and opacity changed")
 
 local originalTarget = tokens.target
 tokens.target = nil
 Event("PLAYER_TARGET_CHANGED")
 Tick(0.1)
-assert(not cap:IsShown(), "clearing target retained selection tab")
+assert(not indicator:IsShown(), "clearing target retained selection rail")
 tokens.target = originalTarget
 Event("PLAYER_TARGET_CHANGED")
 Tick(0.1)
-assert(cap:IsShown(), "retargeting did not restore selection tab")
+assert(indicator:IsShown(), "retargeting did not restore selection rail")
 
 auraStacks = 5
 Event("UNIT_AURA", "nameplate1")
