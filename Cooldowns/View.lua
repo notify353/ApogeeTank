@@ -2,6 +2,7 @@ local _, addon = ...
 addon.CooldownView = {}
 local Style = addon.Style
 local STRIDE = Style.iconSize + Style.iconGap
+local CLUSTER_GAP = 1
 
 function addon.CooldownView.Create(getAnchor)
     local icons = {}
@@ -19,7 +20,7 @@ function addon.CooldownView.Create(getAnchor)
                     if not icon then
                         icon = CreateFrame("Frame", nil, anchor)
                         icon:SetSize(Style.iconSize, Style.iconSize)
-                        icon:SetPoint("LEFT", anchor, "RIGHT", 6 + (count - 1) * STRIDE, 0)
+                        icon:SetPoint("LEFT", anchor, "RIGHT", CLUSTER_GAP + (count - 1) * STRIDE, 0)
                         icon.image = Style.Icon(icon)
                         icon.label = Style.Text(icon, 11, "OUTLINE")
                         icon.label:SetAllPoints()
@@ -51,7 +52,7 @@ function addon.CooldownView.Create(getAnchor)
         end
         if not overflow then
             overflow = Style.Text(anchor, 10)
-            overflow:SetPoint("LEFT", anchor, "RIGHT", 6 + 6 * STRIDE + Style.iconGap, 0)
+            overflow:SetPoint("LEFT", anchor, "RIGHT", CLUSTER_GAP + 6 * STRIDE + Style.iconGap, 0)
         end
         local text = count > 6 and ("+" .. (count - 6)) or ""
         if self.overflowText ~= text then overflow:SetText(text); self.overflowText = text end

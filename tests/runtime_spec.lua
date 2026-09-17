@@ -652,6 +652,30 @@ assert(stanceIcon and stanceIcon:IsShown() and stanceIcon.points[1][1] == "RIGHT
     and stanceIcon.points[1][3] == "LEFT" and stanceIcon.points[1][4] == -1
     and stanceIcon.points[1][5] == 0 and stanceIcon.width == 18 and stanceIcon.height == 18
     and not stanceIcon.mouse, "stance slot must retain player-cluster alignment")
+assert(cooldownIcon.points[1][2] == stanceIcon.points[1][2]
+    and cooldownIcon.points[1][1] == "LEFT" and cooldownIcon.points[1][3] == "RIGHT"
+    and cooldownIcon.points[1][4] == -stanceIcon.points[1][4]
+    and cooldownIcon.points[1][5] == stanceIcon.points[1][5],
+    "cooldowns and stance must sit symmetrically beside the same status cluster")
+local spacingAnchor = Frame("Frame")
+local spacingView = addon.CooldownView.Create(function() return spacingAnchor end)
+local spacingEntries = {}
+for i = 1, 7 do spacingEntries[i] = { spellId = i, icon = i, watched = true } end
+spacingView.Render(spacingEntries, {}, 0)
+local visibleSlots = 0
+for _, item in ipairs(frames) do
+    if item.parent == spacingAnchor then
+        if item.image then
+            visibleSlots = visibleSlots + 1
+            assert(item.width == 18 and item.points[1][4] == 1 + (item.image.texture - 1) * 20,
+                "cooldown spacing between slots changed")
+        elseif item.kind == "FontString" then
+            assert(item.text == "+1" and item.points[1][4] == 123,
+                "overflow must move with cooldowns, retaining its 4px final-slot gap")
+        end
+    end
+end
+assert(visibleSlots == 6, "cooldown visible limit changed")
 assert(stanceIcon.image.points[1][1] == "TOPLEFT"
     and stanceIcon.image.points[1][4] == 1 and stanceIcon.image.points[1][5] == -1
     and stanceIcon.image.points[2][1] == "BOTTOMRIGHT"
