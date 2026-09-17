@@ -191,9 +191,10 @@ assert(row.targetIndicator:IsShown())
 local targetRight = row.targetIndicator.points[1][4]
 local targetLeft = targetRight - row.targetIndicator.width
 assert(row.targetIndicator.parent == row
-    and targetLeft > row.controlBar.points[1][4]
-    and targetLeft > row.statusBar.points[1][4],
-    "child meters would occlude the selected-enemy rail")
+    and targetLeft == row.controlBar.points[1][4]
+    and targetLeft == row.statusBar.points[1][4]
+    and targetRight == 0,
+    "selection rail must fill the gutter up to both meters without overlap")
 assert(row.targetIndicator.points[1][1] == "TOPRIGHT"
     and row.targetIndicator.points[2][1] == "BOTTOMRIGHT"
     and row.targetIndicator.points[1][5] == 0

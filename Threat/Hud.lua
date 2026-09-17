@@ -25,7 +25,7 @@ local COLORS = {
     critical = { 1.00, 0.35, 0.08 }, lost = { 1.00, 0.10, 0.10 },
 }
 local TARGET_COLOR = { 0.38, 0.72, 0.92 }
-local TARGET_INDICATOR_WIDTH = 3
+local TARGET_INDICATOR_WIDTH = CONTROL_RIGHT
 local CAST_COLOR = { 1.00, 0.68, 0.12 }
 local PROTECTED_CAST_COLOR = { 0.58, 0.58, 0.62 }
 local D, frame, overflowLabel, playerStatusAnchor, playerHealthFill, playerPowerFill
