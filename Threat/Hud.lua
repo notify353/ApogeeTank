@@ -62,8 +62,6 @@ local function CreateRow(index)
         -(PLAYER_SECTION_HEIGHT + (index - 1) * (ROW_HEIGHT + ROW_GAP)))
     row:SetHeight(ROW_HEIGHT)
 
-    Style.Background(row)
-
     local rail = row:CreateTexture(nil, "ARTWORK")
     rail:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
     rail:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
