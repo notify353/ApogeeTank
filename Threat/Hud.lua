@@ -100,14 +100,14 @@ local function CreateRow(index)
     zeroLine:SetPoint("TOP", controlBar, "TOP", 0, -1)
     zeroLine:SetPoint("BOTTOM", controlBar, "BOTTOM", 0, 1)
     zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
-    -- Outline the meter itself, outside its bounds. Owning these textures on
-    -- the meter keeps OVERLAY above its fills without covering threat data.
+    -- Two-pixel outline: one pixel outside and one in the meter's empty inner
+    -- padding. This preserves the gap to the health strip and avoids its fill.
     local targetOutline = {}
     local function Edge(first, second, x, y, horizontal)
         local edge = controlBar:CreateTexture(nil, "OVERLAY")
         edge:SetPoint(first, controlBar, first, x, y)
         edge:SetPoint(second, controlBar, second, horizontal and -x or x, y)
-        if horizontal then edge:SetHeight(1) else edge:SetWidth(1) end
+        if horizontal then edge:SetHeight(2) else edge:SetWidth(2) end
         edge:SetColorTexture(unpack(TARGET_COLOR))
         targetOutline[#targetOutline + 1] = edge
     end

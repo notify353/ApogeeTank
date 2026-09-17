@@ -195,8 +195,8 @@ local function AssertTargetOutline(shown)
     end
 end
 AssertTargetOutline(true)
--- Each edge is one pixel outside the actual threat meter; the meter owns its
--- OVERLAY textures so fills cannot cover them. No row-wide or gutter fill.
+-- Each two-pixel edge straddles the meter boundary, using its empty inner
+-- pixel and extending only one pixel outside. No row-wide or gutter fill.
 local expected = {
     { "TOPLEFT", "TOPRIGHT", -1, 1, 1, 1 },
     { "BOTTOMLEFT", "BOTTOMRIGHT", -1, -1, 1, -1 },
@@ -210,11 +210,15 @@ for index, edge in ipairs(row.targetOutline) do
         and second[1] == bounds[2] and second[2] == row.controlBar and second[3] == bounds[2]
         and first[4] == bounds[3] and first[5] == bounds[4]
         and second[4] == bounds[5] and second[5] == bounds[6]
-        and (index <= 2 and edge.height == 1 or index > 2 and edge.width == 1),
+        and (index <= 2 and edge.height == 2 or index > 2 and edge.width == 2),
         "selection outline must frame the meter without covering its fill")
 end
 assert(row.controlBar.points[1][4] + 1 < row.marker.points[1][4],
     "meter outline overlaps the reserved marker lane")
+local meterBottom = -row.controlBar.points[1][5] + row.controlBar.height
+local healthTop = row.height - row.statusBar.points[1][5] - row.statusBar.height
+assert(meterBottom + 1 <= healthTop,
+    "thicker outline extends into the enemy health strip")
 
 local originalTarget = tokens.target
 tokens.target = nil
