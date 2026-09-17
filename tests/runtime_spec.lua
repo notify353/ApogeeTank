@@ -45,7 +45,11 @@ function methods:Hide() local was = self.shown; self.shown = false; if was and s
 function methods:Show() local was = self.shown; self.shown = true; if not was and self.scripts.OnShow then self.scripts.OnShow(self) end end
 function methods:SetShown(value) if value then self:Show() else self:Hide() end end
 function methods:IsShown() return self.shown end
-function methods:CreateTexture(name) return Frame("Texture", name, self) end
+function methods:CreateTexture(name, layer)
+    local texture = Frame("Texture", name, self)
+    texture.layer = layer
+    return texture
+end
 function methods:CreateFontString(name) return Frame("FontString", name, self) end
 function methods:RegisterEvent(event)
     self.events[event] = true
@@ -202,16 +206,28 @@ assert(row.targetIndicator.points[1][1] == "TOPRIGHT"
     "selection rail no longer spans the complete enemy row")
 assert(row.marker.points[1][4] > targetRight,
     "raid marker overlaps the selection gutter")
+assert(row.targetEdge.parent == row and row.targetEdge.width == 1
+    and row.targetEdge.points[1][1] == "TOPRIGHT"
+    and row.targetEdge.points[2][1] == "BOTTOMRIGHT"
+    and row.targetEdge.points[1][2] == row.targetIndicator
+    and row.targetEdge.points[2][2] == row.targetIndicator
+    and row.targetEdge.points[1][4] == 0 and row.targetEdge.points[1][5] == 0
+    and row.targetEdge.points[2][4] == 0 and row.targetEdge.points[2][5] == 0
+    and row.targetIndicator.layer == "ARTWORK" and row.targetEdge.layer == "OVERLAY"
+    and row.targetEdge:IsShown(),
+    "selection accent must cover only the fill's outer pixel at full height")
 
 local originalTarget = tokens.target
 tokens.target = nil
 Event("PLAYER_TARGET_CHANGED")
 Tick(0.1)
-assert(not row.targetIndicator:IsShown(), "clearing target retained selection")
+assert(not row.targetIndicator:IsShown() and not row.targetEdge:IsShown(),
+    "clearing target retained selection")
 tokens.target = originalTarget
 Event("PLAYER_TARGET_CHANGED")
 Tick(0.1)
-assert(row.targetIndicator:IsShown(), "retargeting did not restore selection")
+assert(row.targetIndicator:IsShown() and row.targetEdge:IsShown(),
+    "retargeting did not restore selection")
 
 auraStacks = 5
 Event("UNIT_AURA", "nameplate1")

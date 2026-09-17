@@ -25,6 +25,7 @@ local COLORS = {
     critical = { 1.00, 0.35, 0.08 }, lost = { 1.00, 0.10, 0.10 },
 }
 local TARGET_COLOR = { 0.38, 0.72, 0.92 }
+local TARGET_FILL_COLOR = { 0.12, 0.20, 0.28, 0.88 }
 local TARGET_INDICATOR_WIDTH = CONTROL_RIGHT
 local CAST_COLOR = { 1.00, 0.68, 0.12 }
 local PROTECTED_CAST_COLOR = { 0.58, 0.58, 0.62 }
@@ -101,13 +102,19 @@ local function CreateRow(index)
     zeroLine:SetPoint("TOP", controlBar, "TOP", 0, -1)
     zeroLine:SetPoint("BOTTOM", controlBar, "BOTTOM", 0, 1)
     zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
-    local targetIndicator = row:CreateTexture(nil, "OVERLAY")
+    local targetIndicator = row:CreateTexture(nil, "ARTWORK")
     -- A parent texture cannot overlay child-frame bars. Keep this rail outside
     -- both meters, as in the original HUD, so its full height stays visible.
     targetIndicator:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
     targetIndicator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
     targetIndicator:SetWidth(TARGET_INDICATOR_WIDTH)
-    targetIndicator:SetColorTexture(TARGET_COLOR[1], TARGET_COLOR[2], TARGET_COLOR[3], 0.95)
+    targetIndicator:SetColorTexture(unpack(TARGET_FILL_COLOR))
+    -- The quiet fill closes the gutter; only its outer pixel carries the accent.
+    local targetEdge = row:CreateTexture(nil, "OVERLAY")
+    targetEdge:SetPoint("TOPRIGHT", targetIndicator, "TOPRIGHT", 0, 0)
+    targetEdge:SetPoint("BOTTOMRIGHT", targetIndicator, "BOTTOMRIGHT", 0, 0)
+    targetEdge:SetWidth(1)
+    targetEdge:SetColorTexture(TARGET_COLOR[1], TARGET_COLOR[2], TARGET_COLOR[3], 0.9)
 
     local debuffIcons = {}
     for slot = 1, DEBUFF_LIMIT do
@@ -135,7 +142,7 @@ local function CreateRow(index)
     row.statusBar, row.statusFill = statusBar, statusFill
     row.controlBar, row.controlFill = controlBar, controlFill
     row.zeroLine = zeroLine
-    row.targetIndicator = targetIndicator
+    row.targetIndicator, row.targetEdge = targetIndicator, targetEdge
     row.debuffIcons, row.debuffOverflow = debuffIcons, debuffOverflow
     rows[index] = row
     return row
@@ -314,6 +321,7 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
     local color = COLORS[enemy.severity] or COLORS.safe
     local isCurrentTarget = A.IsCurrentTarget(enemy, currentTargetGuid)
     row.targetIndicator:SetShown(isCurrentTarget)
+    row.targetEdge:SetShown(isCurrentTarget)
     row.rail:SetColorTexture(color[1], color[2], color[3], 1)
     if enemy.raidMarker then
         row.marker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
