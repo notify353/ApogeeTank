@@ -5,6 +5,7 @@
 ## Version: 0.1.0-dev
 ## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB
 
+UI/Style.lua
 Core/UnitAPI.lua
 Core/Auras.lua
 Core/Stance.lua

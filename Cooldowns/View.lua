@@ -1,5 +1,7 @@
 local _, addon = ...
 addon.CooldownView = {}
+local Style = addon.Style
+local STRIDE = Style.iconSize + Style.iconGap
 
 function addon.CooldownView.Create(getAnchor)
     local icons = {}
@@ -16,12 +18,10 @@ function addon.CooldownView.Create(getAnchor)
                     local icon = icons[count]
                     if not icon then
                         icon = CreateFrame("Frame", nil, anchor)
-                        icon:SetSize(18, 18)
-                        icon:SetPoint("LEFT", anchor, "RIGHT", 6 + (count - 1) * 20, 0)
-                        icon.image = icon:CreateTexture(nil, "ARTWORK")
-                        icon.image:SetAllPoints()
-                        icon.image:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-                        icon.label = icon:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                        icon:SetSize(Style.iconSize, Style.iconSize)
+                        icon:SetPoint("LEFT", anchor, "RIGHT", 6 + (count - 1) * STRIDE, 0)
+                        icon.image = Style.Icon(icon)
+                        icon.label = Style.Text(icon, 11, "OUTLINE")
                         icon.label:SetAllPoints()
                         icons[count] = icon
                     end
@@ -50,8 +50,8 @@ function addon.CooldownView.Create(getAnchor)
             end
         end
         if not overflow then
-            overflow = anchor:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-            overflow:SetPoint("LEFT", anchor, "RIGHT", 128, 0)
+            overflow = Style.Text(anchor, 10)
+            overflow:SetPoint("LEFT", anchor, "RIGHT", 6 + 6 * STRIDE + Style.iconGap, 0)
         end
         local text = count > 6 and ("+" .. (count - 6)) or ""
         if self.overflowText ~= text then overflow:SetText(text); self.overflowText = text end

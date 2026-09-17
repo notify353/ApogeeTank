@@ -26,6 +26,8 @@ function methods:SetHeight(value) self.height = value end
 function methods:SetSize(w, h) self.width, self.height = w, h end
 function methods:SetColorTexture(...) self.color = {...} end
 function methods:SetTextColor(...) self.textColor = {...} end
+function methods:GetFont() return "Fonts/FRIZQT__.TTF", 12, "" end
+function methods:SetFont(font, size, flags) self.font, self.fontSize, self.fontFlags = font, size, flags end
 function methods:SetText(value) self.text = value end
 function methods:SetTexture(value) self.texture = value end
 function methods:SetTexCoord(...) self.texCoord = {...} end

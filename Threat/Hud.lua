@@ -2,6 +2,7 @@
 local _, addon = ...
 local A = {}
 addon.ThreatHud = A
+local Style = addon.Style
 
 local ROW_INSET, NAME_LEFT, NAME_WIDTH = 5, 10, 135
 local CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT, CONTROL_RIGHT = 112, 16, 7
@@ -16,7 +17,7 @@ local PLAYER_BAR_GAP, PLAYER_SECTION_GAP = 2, 5
 local PLAYER_STATUS_HEIGHT = PLAYER_HEALTH_HEIGHT + PLAYER_BAR_GAP + PLAYER_POWER_HEIGHT
 local PLAYER_SECTION_HEIGHT = PLAYER_STATUS_HEIGHT + PLAYER_SECTION_GAP
 local QUEUE_LIMIT = 10
-local DEBUFF_ICON_SIZE, DEBUFF_ICON_GAP = 18, 2
+local DEBUFF_ICON_SIZE, DEBUFF_ICON_GAP = Style.iconSize, Style.iconGap
 local DEBUFF_LIMIT = 6
 local ROW_GAP = 1
 local COLORS = {
@@ -61,6 +62,8 @@ local function CreateRow(index)
         -(PLAYER_SECTION_HEIGHT + (index - 1) * (ROW_HEIGHT + ROW_GAP)))
     row:SetHeight(ROW_HEIGHT)
 
+    Style.Background(row)
+
     local rail = row:CreateTexture(nil, "ARTWORK")
     rail:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
     rail:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
@@ -69,7 +72,7 @@ local function CreateRow(index)
     local marker = row:CreateTexture(nil, "ARTWORK")
     marker:SetSize(MARKER_WIDTH, MARKER_WIDTH)
 
-    local name = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    local name = Style.Text(row)
     name:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
     name:SetWidth(NAME_WIDTH); name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
@@ -79,7 +82,7 @@ local function CreateRow(index)
     statusBar:SetSize(CONTROL_BAR_WIDTH, STATUS_BAR_HEIGHT)
     local statusBackground = statusBar:CreateTexture(nil, "BACKGROUND")
     statusBackground:SetAllPoints()
-    statusBackground:SetColorTexture(0.10, 0.10, 0.11, 0.85)
+    statusBackground:SetColorTexture(unpack(Style.slotColor))
     local statusFill = statusBar:CreateTexture(nil, "ARTWORK")
     statusFill:SetPoint("TOPLEFT", statusBar, "TOPLEFT", 0, 0)
     statusFill:SetPoint("BOTTOMLEFT", statusBar, "BOTTOMLEFT", 0, 0)
@@ -92,7 +95,7 @@ local function CreateRow(index)
     marker:SetPoint("LEFT", row, "RIGHT", DEBUFF_ICON_GAP - CONTROL_RIGHT, 0)
 
     local controlBg = controlBar:CreateTexture(nil, "BACKGROUND")
-    controlBg:SetAllPoints(); controlBg:SetColorTexture(0.13, 0.14, 0.16, 1)
+    controlBg:SetAllPoints(); controlBg:SetColorTexture(unpack(Style.headerColor))
     local controlFill = controlBar:CreateTexture(nil, "ARTWORK")
     controlFill:SetWidth(0)
     local zeroLine = controlBar:CreateTexture(nil, "OVERLAY")
@@ -114,17 +117,15 @@ local function CreateRow(index)
         else
             holder:SetPoint("LEFT", debuffIcons[slot - 1], "RIGHT", DEBUFF_ICON_GAP, 0)
         end
-        local icon = holder:CreateTexture(nil, "ARTWORK")
-        icon:SetAllPoints()
-        icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-        local count = holder:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        local icon = Style.Icon(holder)
+        local count = Style.Text(holder, 11, "OUTLINE")
         count:SetPoint("CENTER", holder, "CENTER", 0, 0)
         count:SetJustifyH("CENTER")
         holder.icon, holder.count = icon, count
         holder:Hide()
         debuffIcons[slot] = holder
     end
-    local debuffOverflow = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local debuffOverflow = Style.Text(row, 10)
     debuffOverflow:SetPoint("LEFT", debuffIcons[DEBUFF_LIMIT], "RIGHT", 3, 0)
     debuffOverflow:Hide()
 
@@ -606,7 +607,7 @@ function A.Build()
     end)
     local playerHealthBackground = playerHealthBar:CreateTexture(nil, "BACKGROUND")
     playerHealthBackground:SetAllPoints()
-    playerHealthBackground:SetColorTexture(0.10, 0.10, 0.11, 0.90)
+    playerHealthBackground:SetColorTexture(unpack(Style.slotColor))
     playerHealthFill = playerHealthBar:CreateTexture(nil, "ARTWORK")
     playerHealthFill:SetPoint("TOPLEFT", playerHealthBar, "TOPLEFT", 0, 0)
     playerHealthFill:SetPoint("BOTTOMLEFT", playerHealthBar, "BOTTOMLEFT", 0, 0)
@@ -618,17 +619,17 @@ function A.Build()
     playerPowerBar:SetSize(CONTROL_BAR_WIDTH, PLAYER_POWER_HEIGHT)
     local playerPowerBackground = playerPowerBar:CreateTexture(nil, "BACKGROUND")
     playerPowerBackground:SetAllPoints()
-    playerPowerBackground:SetColorTexture(0.10, 0.10, 0.11, 0.90)
+    playerPowerBackground:SetColorTexture(unpack(Style.slotColor))
     playerPowerFill = playerPowerBar:CreateTexture(nil, "ARTWORK")
     playerPowerFill:SetPoint("TOPLEFT", playerPowerBar, "TOPLEFT", 0, 0)
     playerPowerFill:SetPoint("BOTTOMLEFT", playerPowerBar, "BOTTOMLEFT", 0, 0)
     playerPowerFill:SetWidth(0)
-    overflowLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    overflowLabel = Style.Text(frame, Style.headerFontSize)
     overflowLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT",
         -(ROW_INSET + CONTROL_RIGHT), 5)
     overflowLabel:SetWidth(CONTROL_BAR_WIDTH)
     overflowLabel:SetJustifyH("CENTER"); overflowLabel:SetWordWrap(false)
-    overflowLabel:SetTextColor(0.55, 0.55, 0.60)
+    overflowLabel:SetTextColor(unpack(Style.mutedColor))
     frame:Hide()
     return frame
 end

@@ -1,4 +1,5 @@
 local addon = {}
+assert(loadfile("UI/Style.lua"))("ApogeeTank", addon)
 assert(loadfile("Threat/Hud.lua"))("ApogeeTank", addon)
 local awareness = addon.ThreatHud
 local healthProgress, powerProgress, powerChannel = awareness.GetPlayerStatusDisplay(

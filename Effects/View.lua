@@ -1,7 +1,8 @@
 local _, addon = ...
 local View = {}
 addon.EffectsView = View
-local ICON_SIZE, ICON_GAP, ICON_COLUMNS = 18, 2, 4
+local Style = addon.Style
+local ICON_SIZE, ICON_GAP, ICON_COLUMNS = Style.iconSize, Style.iconGap, 4
 
 local function ShowTooltip(frame, effect, note)
     GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
@@ -35,12 +36,13 @@ function View.Create(model, onChanged, onCleared, canConfigure, onVisibility, co
                 row = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
                 row:SetSize(26, 26)
                 row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(index - 1) * 32)
-                row.icon = row:CreateTexture(nil, "ARTWORK")
-                row.icon:SetSize(20, 20)
-                row.icon:SetPoint("LEFT", row, "RIGHT", 4, 0)
-                row.label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-                row.label:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-                row.label:SetWidth(212)
+                row.slot = CreateFrame("Frame", nil, row)
+                row.slot:SetSize(Style.pickerIconSize, Style.pickerIconSize)
+                row.slot:SetPoint("LEFT", row, "RIGHT", 4, 0)
+                row.icon = Style.Icon(row.slot, Style.pickerIconInset)
+                row.label = Style.Text(row)
+                row.label:SetPoint("LEFT", row.slot, "RIGHT", 6, 0)
+                row.label:SetWidth(208)
                 row.label:SetJustifyH("LEFT")
                 row.label:SetWordWrap(false)
                 row.hover = CreateFrame("Frame", nil, row)
@@ -82,8 +84,12 @@ function View.Create(model, onChanged, onCleared, canConfigure, onVisibility, co
     local function BuildColumn(title, columnModel, left, isCooldown)
         local column = { model = columnModel, rows = {}, cooldown = isCooldown }
         columns[#columns + 1] = column
-        local heading = window:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-        heading:SetPoint("TOPLEFT", window, "TOPLEFT", left, -16)
+        local header = CreateFrame("Frame", nil, window)
+        header:SetPoint("TOPLEFT", window, "TOPLEFT", left, -14)
+        header:SetSize(286, Style.headerHeight)
+        Style.Background(header, Style.headerColor)
+        local heading = Style.Text(header, Style.headerFontSize)
+        heading:SetPoint("LEFT", header, "LEFT", 6, 0)
         heading:SetText(title)
         local scroll = CreateFrame("ScrollFrame", nil, window, "UIPanelScrollFrameTemplate")
         scroll:SetPoint("TOPLEFT", window, "TOPLEFT", left, -42)
@@ -92,16 +98,17 @@ function View.Create(model, onChanged, onCleared, canConfigure, onVisibility, co
         content:SetSize(286, 222)
         scroll:SetScrollChild(content)
         column.scroll, column.content = scroll, content
-        column.empty = content:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+        column.empty = Style.Text(content)
         column.empty:SetPoint("TOPLEFT", content, "TOPLEFT", 4, -8)
         column.empty:SetText("None learned")
+        column.empty:SetTextColor(unpack(Style.mutedColor))
         local clear = CreateFrame("Button", "ApogeeTank" .. title .. "Clear", window, "UIPanelButtonTemplate")
-        clear:SetSize(62, 22)
+        clear:SetSize(72, Style.buttonHeight)
         clear:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", left, 14)
         clear:SetText("Clear")
         local confirm = CreateFrame("Button", "ApogeeTank" .. title .. "ConfirmClear", window, "UIPanelButtonTemplate")
-        confirm:SetSize(92, 22)
-        confirm:SetPoint("LEFT", clear, "RIGHT", 12, 0)
+        confirm:SetSize(112, Style.buttonHeight)
+        confirm:SetPoint("LEFT", clear, "RIGHT", 4, 0)
         confirm:SetText("Confirm clear")
         column.clear, column.confirm = clear, confirm
         confirm:Hide()
@@ -145,12 +152,12 @@ function View.Create(model, onChanged, onCleared, canConfigure, onVisibility, co
         end)
         window:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8",
             edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-        window:SetBackdropColor(0.035, 0.04, 0.05, 0.98)
-        window:SetBackdropBorderColor(0.25, 0.28, 0.32, 1)
+        window:SetBackdropColor(unpack(Style.panelColor))
+        window:SetBackdropBorderColor(unpack(Style.borderColor))
         local divider = window:CreateTexture(nil, "BACKGROUND")
         divider:SetPoint("TOP", window, "TOP", 0, -14)
         divider:SetSize(1, 280)
-        divider:SetColorTexture(0.25, 0.28, 0.32, 0.5)
+        divider:SetColorTexture(unpack(Style.headerColor))
         local close = CreateFrame("Button", nil, window, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", window, "TOPRIGHT", -2, -2)
         close:SetScript("OnClick", function() window:Hide() end)
@@ -184,9 +191,7 @@ function View.Create(model, onChanged, onCleared, canConfigure, onVisibility, co
                     icon:SetPoint("RIGHT", presentation.missingAnchor or anchor, "LEFT",
                         -5 - (index - 1) * (ICON_SIZE + ICON_GAP), 0)
                     icon:EnableMouse(false)
-                    icon.texture = icon:CreateTexture(nil, "ARTWORK")
-                    icon.texture:SetAllPoints()
-                    icon.texture:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+                    icon.texture = Style.Icon(icon)
                     lane.icons[index] = icon
                 end
                 icon.texture:SetTexture(effect.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
@@ -199,7 +204,7 @@ function View.Create(model, onChanged, onCleared, canConfigure, onVisibility, co
                     overflow:SetSize(26, ICON_SIZE)
                     overflow:SetPoint("RIGHT", lane.icons[ICON_COLUMNS], "LEFT", -3, 0)
                     overflow:EnableMouse(false)
-                    overflow.label = overflow:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+                    overflow.label = Style.Text(overflow, 10)
                     overflow.label:SetAllPoints()
                     lane.overflow = overflow
                 end
