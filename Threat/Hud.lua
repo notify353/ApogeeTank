@@ -24,9 +24,7 @@ local COLORS = {
     safe = { 0.25, 0.85, 0.35 }, slipping = { 1.00, 0.82, 0.15 },
     critical = { 1.00, 0.35, 0.08 }, lost = { 1.00, 0.10, 0.10 },
 }
-local TARGET_COLOR = { 0.38, 0.72, 0.92 }
-local TARGET_FILL_COLOR = { 0.12, 0.20, 0.28, 0.88 }
-local TARGET_INDICATOR_WIDTH = CONTROL_RIGHT
+local TARGET_COLOR = { 0.88, 0.91, 0.94, 0.8 }
 local CAST_COLOR = { 1.00, 0.68, 0.12 }
 local PROTECTED_CAST_COLOR = { 0.58, 0.58, 0.62 }
 local D, frame, overflowLabel, playerStatusAnchor, playerHealthFill, playerPowerFill
@@ -91,7 +89,7 @@ local function CreateRow(index)
     local controlBar = CreateFrame("Frame", nil, row)
     controlBar:SetPoint("TOPRIGHT", row, "TOPRIGHT", -CONTROL_RIGHT, -1)
     controlBar:SetSize(CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT)
-    -- Reserve the row's right gutter for selection; markers and auras follow it.
+    -- Preserve the accessory gutter; markers and auras stay outside the meter.
     marker:SetPoint("LEFT", row, "RIGHT", DEBUFF_ICON_GAP, 0)
 
     local controlBg = controlBar:CreateTexture(nil, "BACKGROUND")
@@ -102,19 +100,21 @@ local function CreateRow(index)
     zeroLine:SetPoint("TOP", controlBar, "TOP", 0, -1)
     zeroLine:SetPoint("BOTTOM", controlBar, "BOTTOM", 0, 1)
     zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
-    local targetIndicator = row:CreateTexture(nil, "ARTWORK")
-    -- A parent texture cannot overlay child-frame bars. Keep this rail outside
-    -- both meters, as in the original HUD, so its full height stays visible.
-    targetIndicator:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
-    targetIndicator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
-    targetIndicator:SetWidth(TARGET_INDICATOR_WIDTH)
-    targetIndicator:SetColorTexture(unpack(TARGET_FILL_COLOR))
-    -- The quiet fill closes the gutter; only its outer pixel carries the accent.
-    local targetEdge = row:CreateTexture(nil, "OVERLAY")
-    targetEdge:SetPoint("TOPRIGHT", targetIndicator, "TOPRIGHT", 0, 0)
-    targetEdge:SetPoint("BOTTOMRIGHT", targetIndicator, "BOTTOMRIGHT", 0, 0)
-    targetEdge:SetWidth(1)
-    targetEdge:SetColorTexture(TARGET_COLOR[1], TARGET_COLOR[2], TARGET_COLOR[3], 0.9)
+    -- Outline the meter itself, outside its bounds. Owning these textures on
+    -- the meter keeps OVERLAY above its fills without covering threat data.
+    local targetOutline = {}
+    local function Edge(first, second, x, y, horizontal)
+        local edge = controlBar:CreateTexture(nil, "OVERLAY")
+        edge:SetPoint(first, controlBar, first, x, y)
+        edge:SetPoint(second, controlBar, second, horizontal and -x or x, y)
+        if horizontal then edge:SetHeight(1) else edge:SetWidth(1) end
+        edge:SetColorTexture(unpack(TARGET_COLOR))
+        targetOutline[#targetOutline + 1] = edge
+    end
+    Edge("TOPLEFT", "TOPRIGHT", -1, 1, true)
+    Edge("BOTTOMLEFT", "BOTTOMRIGHT", -1, -1, true)
+    Edge("TOPLEFT", "BOTTOMLEFT", -1, 0, false)
+    Edge("TOPRIGHT", "BOTTOMRIGHT", 1, 0, false)
 
     local debuffIcons = {}
     for slot = 1, DEBUFF_LIMIT do
@@ -142,7 +142,7 @@ local function CreateRow(index)
     row.statusBar, row.statusFill = statusBar, statusFill
     row.controlBar, row.controlFill = controlBar, controlFill
     row.zeroLine = zeroLine
-    row.targetIndicator, row.targetEdge = targetIndicator, targetEdge
+    row.targetOutline = targetOutline
     row.debuffIcons, row.debuffOverflow = debuffIcons, debuffOverflow
     rows[index] = row
     return row
@@ -320,8 +320,7 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
     row.enemy = enemy
     local color = COLORS[enemy.severity] or COLORS.safe
     local isCurrentTarget = A.IsCurrentTarget(enemy, currentTargetGuid)
-    row.targetIndicator:SetShown(isCurrentTarget)
-    row.targetEdge:SetShown(isCurrentTarget)
+    for _, edge in ipairs(row.targetOutline) do edge:SetShown(isCurrentTarget) end
     row.rail:SetColorTexture(color[1], color[2], color[3], 1)
     if enemy.raidMarker then
         row.marker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")

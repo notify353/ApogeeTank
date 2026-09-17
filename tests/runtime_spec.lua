@@ -188,46 +188,43 @@ assert(row.height == 24 and row.controlBar.width == 112 and row.controlBar.heigh
 assert(row.enemy.control == 40 and row.controlDirection == "positive")
 assert(row.debuffIcons[1]:IsShown() and row.debuffIcons[1].count.text == "3")
 assert(not row.debuffIcons[2]:IsShown(), "another player's debuff was rendered")
-assert(row.targetIndicator:IsShown())
-
--- OVERLAY only orders textures within one frame: child meters can still cover
--- the row's selection texture. Prove the rail occupies a separate gutter.
-local targetRight = row.targetIndicator.points[1][4]
-local targetLeft = targetRight - row.targetIndicator.width
-assert(row.targetIndicator.parent == row
-    and targetLeft == row.controlBar.points[1][4]
-    and targetLeft == row.statusBar.points[1][4]
-    and targetRight == 0,
-    "selection rail must fill the gutter up to both meters without overlap")
-assert(row.targetIndicator.points[1][1] == "TOPRIGHT"
-    and row.targetIndicator.points[2][1] == "BOTTOMRIGHT"
-    and row.targetIndicator.points[1][5] == 0
-    and row.targetIndicator.points[2][5] == 0,
-    "selection rail no longer spans the complete enemy row")
-assert(row.marker.points[1][4] > targetRight,
-    "raid marker overlaps the selection gutter")
-assert(row.targetEdge.parent == row and row.targetEdge.width == 1
-    and row.targetEdge.points[1][1] == "TOPRIGHT"
-    and row.targetEdge.points[2][1] == "BOTTOMRIGHT"
-    and row.targetEdge.points[1][2] == row.targetIndicator
-    and row.targetEdge.points[2][2] == row.targetIndicator
-    and row.targetEdge.points[1][4] == 0 and row.targetEdge.points[1][5] == 0
-    and row.targetEdge.points[2][4] == 0 and row.targetEdge.points[2][5] == 0
-    and row.targetIndicator.layer == "ARTWORK" and row.targetEdge.layer == "OVERLAY"
-    and row.targetEdge:IsShown(),
-    "selection accent must cover only the fill's outer pixel at full height")
+local function AssertTargetOutline(shown)
+    assert(#row.targetOutline == 4, "selected meter requires four outline edges")
+    for _, edge in ipairs(row.targetOutline) do
+        assert(edge:IsShown() == shown, "outline did not follow selected target")
+    end
+end
+AssertTargetOutline(true)
+-- Each edge is one pixel outside the actual threat meter; the meter owns its
+-- OVERLAY textures so fills cannot cover them. No row-wide or gutter fill.
+local expected = {
+    { "TOPLEFT", "TOPRIGHT", -1, 1, 1, 1 },
+    { "BOTTOMLEFT", "BOTTOMRIGHT", -1, -1, 1, -1 },
+    { "TOPLEFT", "BOTTOMLEFT", -1, 0, -1, 0 },
+    { "TOPRIGHT", "BOTTOMRIGHT", 1, 0, 1, 0 },
+}
+for index, edge in ipairs(row.targetOutline) do
+    local first, second, bounds = edge.points[1], edge.points[2], expected[index]
+    assert(edge.parent == row.controlBar and edge.layer == "OVERLAY"
+        and first[1] == bounds[1] and first[2] == row.controlBar and first[3] == bounds[1]
+        and second[1] == bounds[2] and second[2] == row.controlBar and second[3] == bounds[2]
+        and first[4] == bounds[3] and first[5] == bounds[4]
+        and second[4] == bounds[5] and second[5] == bounds[6]
+        and (index <= 2 and edge.height == 1 or index > 2 and edge.width == 1),
+        "selection outline must frame the meter without covering its fill")
+end
+assert(row.controlBar.points[1][4] + 1 < row.marker.points[1][4],
+    "meter outline overlaps the reserved marker lane")
 
 local originalTarget = tokens.target
 tokens.target = nil
 Event("PLAYER_TARGET_CHANGED")
 Tick(0.1)
-assert(not row.targetIndicator:IsShown() and not row.targetEdge:IsShown(),
-    "clearing target retained selection")
+AssertTargetOutline(false)
 tokens.target = originalTarget
 Event("PLAYER_TARGET_CHANGED")
 Tick(0.1)
-assert(row.targetIndicator:IsShown() and row.targetEdge:IsShown(),
-    "retargeting did not restore selection")
+AssertTargetOutline(true)
 
 auraStacks = 5
 Event("UNIT_AURA", "nameplate1")
