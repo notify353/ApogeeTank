@@ -659,12 +659,22 @@ function GetShapeshiftFormInfo(index) return 8000 + index, index == activeStance
 Event("UPDATE_SHAPESHIFT_FORM")
 local stanceIcon
 for _, f in ipairs(frames) do
-    if f.parent == addon.ThreatHud.GetPlayerStatusAnchor() and f.texture == 8001 then stanceIcon = f end
+    if f.parent == addon.ThreatHud.GetPlayerStatusAnchor()
+        and f.image and f.image.texture == 8001 then stanceIcon = f end
 end
-assert(stanceIcon and stanceIcon:IsShown() and stanceIcon.points[1][1] == "RIGHT")
+assert(stanceIcon and stanceIcon:IsShown() and stanceIcon.points[1][1] == "RIGHT"
+    and stanceIcon.points[1][3] == "LEFT" and stanceIcon.points[1][4] == -6
+    and stanceIcon.points[1][5] == 0 and stanceIcon.width == 18 and stanceIcon.height == 18
+    and not stanceIcon.mouse, "stance slot must retain player-cluster alignment")
+assert(stanceIcon.image.points[1][1] == "TOPLEFT"
+    and stanceIcon.image.points[1][4] == 1 and stanceIcon.image.points[1][5] == -1
+    and stanceIcon.image.points[2][1] == "BOTTOMRIGHT"
+    and stanceIcon.image.points[2][4] == -1 and stanceIcon.image.points[2][5] == 1
+    and stanceIcon.image.texCoord[1] == 0.07 and stanceIcon.image.texCoord[2] == 0.93,
+    "stance artwork must use the same inset and crop as cooldown slots")
 activeStance = 2
 Event("UPDATE_SHAPESHIFT_FORM")
-assert(stanceIcon.texture == 8002, "stance change did not update icon")
+assert(stanceIcon.image.texture == 8002, "stance change did not update icon")
 activeStance = 0
 Event("UPDATE_SHAPESHIFT_FORM")
 assert(not stanceIcon:IsShown(), "no active stance left an old icon visible")

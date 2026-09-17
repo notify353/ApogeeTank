@@ -1,4 +1,5 @@
 local _, addon = ...
+local Style = addon.Style
 
 function addon.StartStance(getAnchor)
     local driver = CreateFrame("Frame")
@@ -12,13 +13,14 @@ function addon.StartStance(getAnchor)
         if not anchor then return end
         local texture = addon.GetActiveStanceIcon()
         if not icon and texture then
-            icon = anchor:CreateTexture(nil, "ARTWORK")
-            icon:SetSize(18, 18)
+            icon = CreateFrame("Frame", nil, anchor)
+            icon:SetSize(Style.iconSize, Style.iconSize)
             icon:SetPoint("RIGHT", anchor, "LEFT", -6, 0)
-            icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+            icon:EnableMouse(false)
+            icon.image = Style.Icon(icon)
         end
         if icon then
-            icon:SetTexture(texture)
+            icon.image:SetTexture(texture)
             icon:SetShown(texture ~= nil)
         end
     end)
