@@ -1,4 +1,5 @@
 local addon = {}
+assert(loadfile("Core/Access.lua"))("ApogeeTank", addon)
 assert(loadfile("Core/Auras.lua"))("ApogeeTank", addon)
 assert(loadfile("Core/ObservedSpellList.lua"))("ApogeeTank", addon)
 assert(loadfile("Effects/Model.lua"))("ApogeeTank", addon)

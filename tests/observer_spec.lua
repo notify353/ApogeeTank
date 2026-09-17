@@ -1,4 +1,5 @@
 local addon = {}
+assert(loadfile("Core/Access.lua"))("ApogeeTank", addon)
 
 local now = 10
 local tokens = {

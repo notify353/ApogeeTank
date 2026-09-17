@@ -1,5 +1,14 @@
 -- Dynamic hostile-unit observation and normalized group threat snapshots.
 local _, addon = ...
+local Access = addon.Access
+local UnitExists = Access.Global("UnitExists")
+local UnitCreatureType = Access.Global("UnitCreatureType")
+local UnitCanAttack = Access.Global("UnitCanAttack")
+local UnitIsDeadOrGhost = Access.Global("UnitIsDeadOrGhost")
+local UnitIsUnit = Access.Global("UnitIsUnit")
+local UnitName = Access.Global("UnitName")
+local UnitGUID = Access.Global("UnitGUID")
+local GetRaidTargetIndex = Access.Global("GetRaidTargetIndex")
 local O = {}
 addon.ThreatObserver = O
 local SLOT_UNITS = { "player", "party1", "party2", "party3", "party4" }
@@ -63,8 +72,10 @@ function O.GetThreatDetails(mobUnit, activeChallengers, assumeValidMob)
     end
     for _, unit in ipairs(activeChallengers or CHALLENGER_UNITS) do
         if activeChallengers or UnitExists(unit) then
-            local isTanking, status, scaledPercent, rawPercent, rawThreat =
-                UnitDetailedThreatSituation(unit, mobUnit)
+            local readable, isTanking, status, scaledPercent, rawPercent, rawThreat =
+                Access.Try(UnitDetailedThreatSituation, unit, mobUnit)
+            -- A hidden challenger cannot be treated as zero threat.
+            if not readable then return {}, true end
             if type(scaledPercent) == "number" then
                 details[unit] = {
                     isTanking = isTanking == true,
@@ -175,7 +186,8 @@ local function GetPlayerDebuffDisplay(unit, guid)
 end
 
 local function BuildEnemy(unit, guid, now, activeChallengers)
-    local details = O.GetThreatDetails(unit, activeChallengers, true)
+    local details, unavailable = O.GetThreatDetails(unit, activeChallengers, true)
+    if unavailable then return nil, true end
     if next(details) == nil then return nil end
     local player = details.player
     local isTanking = player and player.isTanking == true or false
@@ -253,6 +265,11 @@ local STATIC_SOURCES = {}
 AddStaticSources(STATIC_SOURCES)
 
 function O.InvalidateAuras(unit)
+    if not Access.CanRead(unit) then
+        -- A restricted event cannot be attributed to one cached enemy.
+        debuffDisplayByGuid = {}
+        return
+    end
     if type(unit) ~= "string" then return end
     local guid = unitAPI and type(unitAPI.GetGUID) == "function" and unitAPI.GetGUID(unit)
         or (UnitGUID and UnitGUID(unit))
@@ -288,7 +305,11 @@ function O.Refresh()
     local visibleNameplates = 0
     for unit in pairs(sources) do
         if UnitExists and UnitExists(unit) then
-            local guid = UnitGUID and UnitGUID(unit)
+            local readable, guid = Access.Try(_G.UnitGUID, unit)
+            if not readable then
+                -- Do not retain a last-seen identity across a restricted read.
+                history, debuffDisplayByGuid = {}, {}
+            end
             local isDead = UnitIsDeadOrGhost and UnitIsDeadOrGhost(unit)
             local isHostile = UnitCanAttack and UnitCanAttack("player", unit)
             local isTotem = guid and isHostile and not isDead and IsTotem(unit)
@@ -305,7 +326,10 @@ function O.Refresh()
         end
     end
     for guid, source in pairs(selectedSources) do
-        local enemy = BuildEnemy(source.unit, guid, now, activeChallengers)
+        local enemy, unavailable = BuildEnemy(source.unit, guid, now, activeChallengers)
+        if unavailable then
+            history[guid], debuffDisplayByGuid[guid] = nil, nil
+        end
         if enemy then byGuid[guid] = enemy end
     end
 
@@ -347,11 +371,11 @@ end
 function O.GetSnapshot() return DeepCopy(snapshot) end
 
 function O.OnNamePlateAdded(unit)
-    if type(unit) == "string" then nameplateUnits[unit] = true end
+    if Access.CanRead(unit) and type(unit) == "string" then nameplateUnits[unit] = true end
 end
 
 function O.OnNamePlateRemoved(unit)
-    if type(unit) == "string" then nameplateUnits[unit] = nil end
+    if Access.CanRead(unit) and type(unit) == "string" then nameplateUnits[unit] = nil end
 end
 
 function O.Initialize(deps)

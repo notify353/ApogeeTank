@@ -1,6 +1,6 @@
 # Architecture and extension guide
 
-`ApogeeTank.lua` gates the client and wires feature entry points through the
+`ApogeeTank.lua` uses Core/Client.lua's gate and wires feature entry points through the
 private addon table passed by WoW. It creates no feature policy. The TOC loads
 definitions before this startup file; unsupported clients do not start drivers.
 
@@ -9,7 +9,8 @@ definitions before this startup file; unsupported clients do not start drivers.
 | Module | Responsibility |
 | --- | --- |
 | `UI/Style.lua` | Shared palette, fonts and cropped inset icons; no placement or feature policy. |
-| `Core/UnitAPI.lua` | Unit health, active power and cast normalization; legacy health/power colors. |
+| `Core/Client.lua`, `Core/Access.lua` | Explicit verified-client selection and guarded ordinary Lua reads. |
+| `Core/UnitAPI.lua` | Unit normalization, health/power colors and display-only native beta health/power sinks. |
 | `Core/Auras.lua` | Harmful-aura reading and exact player ownership; nil means unavailable. |
 | `Core/Cooldowns.lua`, `Core/Stance.lua` | Cooldown/charge and stance client reads. |
 | `Core/ObservedSpellList.lua` | Exact spell identity, watched/ignored persistence, migration, version guard and revisions. |

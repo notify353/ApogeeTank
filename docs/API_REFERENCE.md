@@ -1,4 +1,4 @@
-# Classic Era API reference
+# Verified client API reference
 
 ## Export freshness check
 
@@ -17,9 +17,8 @@ This checks export freshness, not API signatures or runtime compatibility.
 File timestamps are a heuristic and cannot prove which build produced an export.
 Continue reviewing the exported contracts and testing in-game.
 
-Only Era is configured. Add a Forever target's verified product, directory,
-executable, build, and interface when the beta is available, then use `-Target`.
-An unknown target fails rather than falling back to Era.
+Era is the default target. Use -Target foreverBeta for the independently
+recorded beta export. An unknown target fails rather than falling back to Era.
 
 The fixture tests run through `test-local.ps1` without requiring WoW. Run the
 live export check separately on a machine with the client installed.
@@ -91,3 +90,66 @@ is only trusted inside SPELL_UPDATE_COOLDOWN, as the export requires. Successful
 player spell IDs come from UnitDocumentation.lua's UNIT_SPELLCAST_SUCCEEDED.
 SPELL_UPDATE_CHARGES supplies charge updates. No fixed GCD spell ID or duration
 threshold is used. Ordinary countdown ticks make no spell API calls.
+
+
+## Forever beta 1.60.1.69893 (2026-09-17)
+
+Runtime identifiers supplied by the owner's beta diagnostics: version 1.60.1,
+build 69893, interface 16001, project 1 (CLASSIC is 2). This is why project 1
+alone is never sufficient to enable the addon. The beta executable's UTC write
+time was 2026-09-17 11:30:43; UnitDocumentation.lua was 21:01:44. The live
+checker passed for every required file on both clients after implementation.
+
+Authoritative beta root:
+C:/Program Files (x86)/World of Warcraft/_classic_beta_/BlizzardInterfaceCode/Interface/AddOns/
+
+Verified generated contracts and exported callers:
+
+- UnitDocumentation.lua: UnitDetailedThreatSituation has conditional secret
+  threat values; GUID/name/creature type have identity restrictions; UnitIsUnit
+  has comparison restrictions. UnitHealth is secret, UnitHealthMax and power
+  have conditional restrictions. Cast/channel tuples have spellcast restrictions.
+  UNIT_SPELLCAST_SUCCEEDED carries unit, cast GUID, spell ID and optional cast
+  bar ID, and can carry restricted values.
+- UnitAuraDocumentation.lua: GetAuraDataByIndex requires unit aura access and
+  may return secret data. Full aura fields and sourceUnit are checked before
+  normalization; failed ownership comparison invalidates the complete read.
+- SpellDocumentation.lua and SpellSharedDocumentation.lua: cooldown/charge
+  structs can contain secret numeric fields. isEnabled, isActive, isOnGCD and
+  maxCharges are NeverSecret. isOnGCD is trusted only while handling
+  SPELL_UPDATE_COOLDOWN. Charges use isActive to confirm actual recharge.
+- SpellBookDocumentation.lua confirms cooldown and charge events. All literal
+  events registered in Threat, Effects, Cooldowns and Stance were found in the
+  beta generated export. Existing event-driven sampling remains intact.
+- NamePlateDocumentation.lua confirms GetNamePlates. Exported nameplate
+  lifecycle uses namePlateUnitToken. Shared ActionBar/StanceBar.lua and
+  ActionButtonUtil.lua confirm GetNumShapeshiftForms and the icon/active/
+  castable/spellID GetShapeshiftFormInfo tuple.
+- RaidMarkersDocumentation.lua: GetRaidTargetIndex has secret returns.
+- SimpleStatusBarAPIDocumentation.lua: SetMinMaxValues, SetValue and
+  SetStatusBarColor explicitly accept secret arguments when tainted.
+  Blizzard_UnitFrame/Shared/CompactUnitFrame.lua passes health/max health to
+  these native setters. Tank uses this display-only route; no native status-bar
+  values or aspects are read back.
+- CurveUtilDocumentation.lua, LuaColorCurveObjectAPIDocumentation.lua and
+  LuaCurveObjectBaseAPIDocumentation.lua confirm color-curve construction,
+  step interpolation and EvaluateUnpacked. UnitHealthPercent provides the
+  display input. The player's four existing color bands use this native path.
+- SharedXML Backdrop.xml, Mainline/SharedUIPanelTemplates.xml,
+  SecureScrollTemplates.xml and Shared/Button/CheckButtonTemplates.xml confirm
+  all five picker templates. Shared ChatFrameFilters.lua demonstrates
+  canaccessvalue guards on restricted payloads.
+
+The runtime-confirmed absence of C_CombatLog.GetCurrentEventInfo is recorded
+as context, not a Tank dependency. Internal/secure combat-log readers are not
+used. No external web API reference substitutes for this client's export.
+
+Run both:
+    pwsh ./scripts/check-wow-api-export.ps1
+    pwsh ./scripts/check-wow-api-export.ps1 -Target foreverBeta
+
+Local tests pass for guarded reads, unavailable recovery, native display sinks,
+both TOC startup paths and existing feature regressions. No live Tank beta
+installation, visual parity, protected-frame or party-combat acceptance is
+claimed. See FOREVER_BETA_PLAN.md for the per-feature limits and installation
+approval/rollback plan.

@@ -7,7 +7,7 @@ try {
     $version = (& lua -v 2>&1 | Out-String)
     if ($version -notmatch 'Lua 5\.1\.') { throw 'Lua 5.1 is required.' }
     $toc = Get-Content -LiteralPath 'ApogeeTank.toc'
-    if ($toc -notcontains '## Interface: 11509') { throw 'Expected Classic Era interface 11509.' }
+    if ($toc -notcontains '## Interface: 11509, 16001') { throw 'Expected verified Era and beta interfaces.' }
     if ($toc -match '^## (SavedVariables:|Dependencies|RequiredDeps|OptionalDeps)') {
         throw 'No account-wide settings or other addon dependencies are allowed.'
     }

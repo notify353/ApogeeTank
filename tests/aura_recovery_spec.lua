@@ -1,5 +1,6 @@
 -- A fresh observer proves recovery without a second aura-change event.
 local addon = {}
+assert(loadfile("Core/Access.lua"))("ApogeeTank", addon)
 assert(loadfile("Threat/Observer.lua"))("ApogeeTank", addon)
 function UnitExists(unit) return unit == "player" or unit == "target" end
 function UnitGUID(unit) return unit == "target" and "enemy" or "player" end

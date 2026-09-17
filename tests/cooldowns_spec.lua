@@ -1,4 +1,5 @@
 local addon, frames = {}, {}
+assert(loadfile("Core/Access.lua"))("ApogeeTank", addon)
 local now, rendered, apiReads = 100, nil, 0
 function GetTime() return now end
 function UnitAffectingCombat() return true end
@@ -135,3 +136,20 @@ assert(apiReads == beforeExpired, "expired discovery candidate was queried")
 assert(#runtime.GetModel().GetEntries() == 0, "expired candidate was learned")
 assert(not driver.shown, "expired candidate kept the update driver awake")
 print("Cooldown initialization, selection refresh, unknown state and expiry regressions passed")
+
+local secret = {}
+function issecretvalue(value) return rawequal(value, secret) end
+function canaccessvalue(value) return not issecretvalue(value) end
+cooldown.duration = secret
+Event("UNIT_SPELLCAST_SUCCEEDED", "player", secret)
+Event("SPELL_UPDATE_COOLDOWN")
+assert(#runtime.GetModel().GetEntries() == 0, "learned restricted spell identity")
+Event("UNIT_SPELLCAST_SUCCEEDED", "player", 888)
+Event("SPELL_UPDATE_COOLDOWN")
+assert(runtime.GetModel().GetEntries()[1].spellId == 888, "public cooldown flag failed learning")
+assert(rendered.states[888].unknown, "restricted timer became ready")
+runtime.GetModel().SetWatched(888, false)
+Event("UNIT_SPELLCAST_SUCCEEDED", "player", 888)
+Event("SPELL_UPDATE_COOLDOWN")
+assert(not runtime.GetModel().GetEntries()[1].watched, "beta reobservation lost opt-out")
+print("Beta cooldown classification, restricted identity and persistent opt-out passed")

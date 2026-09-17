@@ -48,6 +48,9 @@ $documentation = Join-Path $clientRoot 'BlizzardInterfaceCode/Interface/AddOns/B
 $requiredFiles = @('Blizzard_APIDocumentationGenerated.toc', 'UnitDocumentation.lua',
     'UnitAuraDocumentation.lua', 'NamePlateDocumentation.lua', 'SpellDocumentation.lua',
     'SpellSharedDocumentation.lua', 'RestrictedActionsDocumentation.lua')
+if ($targetInfo.PSObject.Properties['requiredFiles']) {
+    $requiredFiles += @($targetInfo.requiredFiles)
+}
 foreach ($name in $requiredFiles) {
     $file = Get-Item -LiteralPath (Join-Path $documentation $name)
     if ($file.LastWriteTimeUtc -lt $executable.LastWriteTimeUtc) {

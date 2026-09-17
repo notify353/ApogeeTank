@@ -1,6 +1,39 @@
 local _, addon = ...
+local Access = addon.Access
+local UnitExists = Access.Global("UnitExists")
+local UnitHealth = Access.Global("UnitHealth")
+local UnitHealthMax = Access.Global("UnitHealthMax")
+local UnitCastingInfo = Access.Global("UnitCastingInfo")
+local UnitChannelInfo = Access.Global("UnitChannelInfo")
+local UnitGUID = Access.Global("UnitGUID")
+local UnitPowerType = Access.Global("UnitPowerType")
+local UnitPowerMax = Access.Global("UnitPowerMax")
+local UnitPower = Access.Global("UnitPower")
 local U = {}
 addon.UnitAPI = U
+
+-- Display-only native sinks explicitly accept secret values in Forever.
+-- These values never enter snapshots, calculations, discovery or saved data.
+function U.PaintNativeHealth(bar, unit, colorCurve)
+    if not U.Exists(unit) then return false end
+    return pcall(function()
+        bar:SetMinMaxValues(0, _G.UnitHealthMax(unit))
+        bar:SetValue(_G.UnitHealth(unit))
+        if colorCurve then
+            bar:SetStatusBarColor(colorCurve:EvaluateUnpacked(UnitHealthPercent(unit)))
+        end
+    end)
+end
+
+function U.PaintNativePower(bar, unit)
+    local kind, token = UnitPowerType(unit)
+    if kind == nil then return false end
+    return pcall(function()
+        bar:SetMinMaxValues(0, _G.UnitPowerMax(unit, kind))
+        bar:SetValue(_G.UnitPower(unit, kind))
+        bar:SetStatusBarColor(U.GetPowerColor(kind, token))
+    end)
+end
 
 function U.Exists(unitId)
     if unitId == nil or UnitExists == nil then return false end
@@ -10,8 +43,9 @@ end
 
 function U.GetHealth(unitId)
     if not U.Exists(unitId) then return 0, 1 end
-    local value = UnitHealth and UnitHealth(unitId) or 0
-    local maximum = UnitHealthMax and UnitHealthMax(unitId) or 1
+    local value = UnitHealth(unitId)
+    local maximum = UnitHealthMax(unitId)
+    if value == nil or maximum == nil then return 0, 1, false end
     if type(value) ~= "number" then value = 0 end
     local validMaximum = type(maximum) == "number" and maximum > 0
     if not validMaximum then maximum = 1 end
@@ -68,8 +102,8 @@ function U.GetPowerChannels(unitId)
     local function add(channelType, channelToken)
         local maximum = UnitPowerMax and UnitPowerMax(unitId, channelType) or 0
         if type(maximum) ~= "number" or maximum <= 0 then return end
-        local value = UnitPower and UnitPower(unitId, channelType) or 0
-        if type(value) ~= "number" then value = 0 end
+        local value = UnitPower(unitId, channelType)
+        if type(value) ~= "number" then return end
         channels[#channels + 1] = {
             powerType = channelType,
             powerToken = channelToken,

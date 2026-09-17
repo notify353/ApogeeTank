@@ -713,3 +713,65 @@ Tick(0.1)
 assert(redraws == 1 and scans == 0, "health/power burst was not coalesced")
 assert(not driver:IsShown(), "idle threat driver kept running")
 print("100 health/power event pairs: one player redraw, zero aura scans, idle driver asleep")
+
+-- Full beta TOC startup and transitions use the same UI mock as Era.
+frames, named, driver = {}, {}, nil
+interface, WOW_PROJECT_ID = 16001, 1
+function GetBuildInfo() return "1.60.1", "69893", "", interface end
+local secretValue = {}
+function issecretvalue(value) return rawequal(value, secretValue) end
+function canaccessvalue(value) return not issecretvalue(value) end
+function methods:SetStatusBarTexture(texture) self.barTexture = texture end
+function methods:SetStatusBarColor(...) self.barColor = {...} end
+function methods:SetMinMaxValues(low, high) self.minimum, self.maximum = low, high end
+function methods:SetValue(value) self.barValue = value end
+function CreateColor(...) return {...} end
+Enum = { LuaCurveType = { Step = 1 } }
+C_CurveUtil = { CreateColorCurve = function()
+    return {
+        SetType = function() end,
+        AddPoint = function() end,
+        EvaluateUnpacked = function() return 0.28, 0.74, 0.46, 1 end,
+    }
+end }
+function UnitHealthPercent() return secretValue end
+ApogeeTankEffectsDB, ApogeeTankCooldownsDB = nil, nil
+tokens.player.health = secretValue
+tokens.target.health = secretValue
+addon = LoadAddon()
+assert(addon.Client == "foreverBeta")
+Event("PLAYER_LOGIN")
+Tick(0.1)
+local nativeBars = {}
+for _, item in ipairs(frames) do
+    if item.kind == "StatusBar" then nativeBars[#nativeBars + 1] = item end
+end
+assert(#nativeBars >= 2 and rawequal(nativeBars[1].barValue, secretValue),
+    "beta player health failed native secret delivery")
+local betaPlayerBar = nativeBars[1].parent
+assert(betaPlayerBar:IsShown() and betaPlayerBar.scripts.OnMouseUp,
+    "beta lost the player health picker anchor")
+combat = true
+Event("PLAYER_REGEN_DISABLED")
+Tick(0.1)
+local readableThreat = UnitDetailedThreatSituation
+function UnitDetailedThreatSituation() return secretValue, secretValue, secretValue end
+Event("UNIT_THREAT_LIST_UPDATE", "target")
+Tick(0.1)
+assert(addon.ThreatObserver.GetSnapshot().total == 0, "restricted threat generated a row")
+UnitDetailedThreatSituation = readableThreat
+Event("UNIT_THREAT_LIST_UPDATE", "target")
+Tick(0.1)
+assert(addon.ThreatObserver.GetSnapshot().total > 0, "readable threat failed to recover")
+combat = false
+Event("PLAYER_REGEN_ENABLED")
+shiftDown = true
+betaPlayerBar.scripts.OnMouseUp(betaPlayerBar, "LeftButton")
+Tick(0.1)
+assert(named.ApogeeTankEffectsWindow:IsShown(), "beta picker did not open")
+combat = true
+Event("PLAYER_REGEN_DISABLED")
+assert(not named.ApogeeTankEffectsWindow:IsShown(), "beta combat left picker open")
+Event("UNIT_AURA", secretValue)
+Event("PLAYER_LEAVING_WORLD")
+print("Full beta TOC, native secret health, threat recovery, picker and zoning smoke passed")

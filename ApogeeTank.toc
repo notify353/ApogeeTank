@@ -1,4 +1,4 @@
-## Interface: 11509
+## Interface: 11509, 16001
 ## Title: Apogee Tank
 ## IconTexture: Interface\AddOns\ApogeeTank\Media\Textures\ApogeeLogo.png
 ## Notes: Fixed multi-enemy tank threat HUD for Classic Era.
@@ -6,6 +6,8 @@
 ## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB
 
 UI/Style.lua
+Core/Access.lua
+Core/Client.lua
 Core/UnitAPI.lua
 Core/Auras.lua
 Core/Stance.lua

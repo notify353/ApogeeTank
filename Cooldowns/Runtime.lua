@@ -1,4 +1,5 @@
 local _, addon = ...
+local Access = addon.Access
 local DISCOVERY_WINDOW, UPDATE_INTERVAL = 10, 0.1
 
 function addon.StartCooldowns(anchor)
@@ -100,6 +101,7 @@ function addon.StartCooldowns(anchor)
             inCombat = event == "PLAYER_REGEN_DISABLED"
             Sample(false)
         elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+            if not Access.CanRead(unit, id) then return end
             if model and unit == "player" and type(id) == "number" and not stances[id] then
                 candidates[id] = GetTime() + DISCOVERY_WINDOW
                 driver:Show()

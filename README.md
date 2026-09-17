@@ -1,6 +1,7 @@
 # Apogee Tank
 
-A small independent threat HUD for **WoW Classic Era 1.15.9 (interface 11509)**.
+A small independent threat HUD for **WoW Classic Era 1.15.9 (interface 11509)**,
+with an experimental **Forever beta 1.60.1.69893 (interface 16001)** candidate.
 It uses fixed placement and behavior for everyone. There are no profiles, key
 bindings, minimap controls or dependencies on other Apogee addons.
 
@@ -75,9 +76,21 @@ the combined picker, which Effects owns; a healthy cooldown tracker still runs.
 A newer cooldown store leaves the debuff picker usable. Install a compatible
 addon version to use the preserved data; the addon does not reset it for you.
 
-Only Classic Era is enabled. [Forever beta preparation](docs/FOREVER_BETA_PLAN.md)
-describes deferred work; it is not a compatibility claim. Client-specific API
-evidence and the export checker are described in [API reference](docs/API_REFERENCE.md).
+Classic Era remains supported. The exact verified Forever beta build is enabled
+for acceptance testing; other beta builds and unknown clients are rejected.
+[Forever beta status](docs/FOREVER_BETA_PLAN.md) records the plan and limitations.
+Beta player health/power and enemy health use native display APIs that accept
+restricted values. Threat comparisons, casts, raid markers and owned debuffs
+require readable data: restricted threat removes the row, restricted auras never
+assert a missing effect, and restricted casts/markers are omitted. Cooldowns can
+still be learned from public real-cooldown flags when the timer is hidden, but
+their numeric display becomes the existing dim question mark. Restricted spell
+identities are never learned. The beta uses general applied-debuff slots rather
+than the unverified Era class-column catalog.
+
+These are implemented fallback behaviors, not demonstrated full combat parity.
+No live Tank beta installation or acceptance test has been performed.
+Client-specific evidence and export checking are in the [API reference](docs/API_REFERENCE.md).
 
 ## Development and validation
 

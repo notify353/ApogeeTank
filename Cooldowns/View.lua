@@ -31,6 +31,7 @@ function addon.CooldownView.Create(getAnchor)
                         icon.lastTexture = entry.icon
                     end
                     local state = states[entry.spellId]
+                    if state and state.unknown then state = nil end
                     local remaining = state and math.max(0, state.start + state.duration - now) or nil
                     local label, alpha
                     if state and state.charges and state.charges > 0 then

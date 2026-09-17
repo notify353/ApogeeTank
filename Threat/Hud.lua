@@ -29,11 +29,20 @@ local CAST_COLOR = { 1.00, 0.68, 0.12 }
 local PROTECTED_CAST_COLOR = { 0.58, 0.58, 0.62 }
 local D, frame, overflowLabel, playerStatusAnchor, playerHealthFill, playerPowerFill
 local playerHealthBar, playerPowerBar
+local nativeHealth, nativePower, healthCurve
 local rows = {}
 local queueSlots = {}
 local observing = false
 local rowsChanged
 local playerClickHandler
+
+local function NativeBar(parent)
+    local bar = CreateFrame("StatusBar", nil, parent)
+    bar:SetAllPoints()
+    bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
+    bar:EnableMouse(false)
+    return bar
+end
 
 local function SetHealthyHealthColor(texture)
     texture:SetColorTexture(D.UnitBar.GetHealthColor(1))
@@ -132,6 +141,10 @@ local function CreateRow(index)
     row.rail = rail
     row.marker, row.name = marker, name
     row.statusBar, row.statusFill = statusBar, statusFill
+    if addon.Client == "foreverBeta" then
+        row.nativeHealth = NativeBar(statusBar)
+        row.nativeHealth:SetStatusBarColor(D.UnitBar.GetHealthColor(1))
+    end
     row.controlBar, row.controlFill = controlBar, controlFill
     row.zeroLine = zeroLine
     row.targetIndicator = targetIndicator
@@ -158,6 +171,11 @@ end
 
 local function RenderPlayerStatus()
     if not playerHealthBar then return end
+    if nativeHealth then
+        playerHealthBar:SetShown(D.UnitAPI.PaintNativeHealth(nativeHealth, "player", healthCurve))
+        playerPowerBar:SetShown(D.UnitAPI.PaintNativePower(nativePower, "player"))
+        return
+    end
     local health, healthMaximum, healthValid
     local channels
     health, healthMaximum, healthValid = D.UnitAPI.GetHealth("player")
@@ -267,6 +285,16 @@ end
 
 local function RenderStatusBar(row, enemy, now)
     local castProgress, notInterruptible = GetCastProgress(enemy, now)
+    if row.nativeHealth then
+        local native = castProgress == nil and enemy.unit ~= nil and enemy.live ~= false
+        row.nativeHealth:SetShown(native)
+        if native then
+            row.statusFill:Hide()
+            row.statusBar:SetShown(D.UnitAPI.PaintNativeHealth(row.nativeHealth, enemy.unit))
+            return false
+        end
+        row.statusFill:Show()
+    end
     local progress = castProgress or A.GetHealthDisplay(enemy)
     row.statusBar:SetShown(progress ~= nil)
     if progress == nil then return false end
@@ -596,6 +624,19 @@ function A.Build()
     playerPowerFill:SetPoint("TOPLEFT", playerPowerBar, "TOPLEFT", 0, 0)
     playerPowerFill:SetPoint("BOTTOMLEFT", playerPowerBar, "BOTTOMLEFT", 0, 0)
     playerPowerFill:SetWidth(0)
+    if addon.Client == "foreverBeta" then
+        -- Native status bars preserve the dimensions while accepting restricted
+        -- health/power directly; Lua never reads back their values or aspects.
+        nativeHealth, nativePower = NativeBar(playerHealthBar), NativeBar(playerPowerBar)
+        playerHealthFill:Hide()
+        playerPowerFill:Hide()
+        nativeHealth:SetStatusBarColor(D.UnitBar.GetHealthColor(1))
+        healthCurve = C_CurveUtil.CreateColorCurve()
+        healthCurve:SetType(Enum.LuaCurveType.Step)
+        for _, point in ipairs({ 0, 0.150000001, 0.350000001, 0.600000001 }) do
+            healthCurve:AddPoint(point, CreateColor(D.UnitBar.GetHealthColor(point)))
+        end
+    end
     overflowLabel = Style.Text(frame, Style.headerFontSize)
     overflowLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT",
         -(ROW_INSET + CONTROL_RIGHT), 5)

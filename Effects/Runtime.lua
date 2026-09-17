@@ -1,4 +1,6 @@
 local _, addon = ...
+local Access = addon.Access
+local UnitIsUnit = Access.Global("UnitIsUnit")
 
 function addon.StartEffects(deps)
     local driver = CreateFrame("Frame")
@@ -69,7 +71,7 @@ function addon.StartEffects(deps)
         driver:Hide()
     end
     driver:SetScript("OnEvent", function(_, event, unit)
-        if initializationFailed then return end
+        if initializationFailed or not Access.CanRead(unit) then return end
         if event == "PLAYER_LOGIN" and not model then
             local reason
             model, reason = addon.EffectsModel.Create(ApogeeTankEffectsDB)

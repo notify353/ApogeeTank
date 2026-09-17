@@ -1,4 +1,4 @@
--- Classic Era only. One fixed HUD, no SavedVariables or configuration surface.
+-- One fixed HUD; shared feature lifecycle for both verified clients.
 local _, addon = ...
 
 function addon.StartThreat()
@@ -34,7 +34,7 @@ function addon.StartThreat()
             Now = GetTime,
             UnitAPI = api,
             Auras = { GetUnitHarmfulAuraSnapshot = GetUnitHarmfulAuraSnapshot },
-            DebuffData = addon.ThreatDebuffData,
+            DebuffData = addon.Client ~= "foreverBeta" and addon.ThreatDebuffData or nil,
             GetClassToken = function() return select(2, UnitClass("player")) end,
         })
         hud.Initialize({
@@ -78,10 +78,12 @@ function addon.StartThreat()
             return
         elseif event == "PLAYER_REGEN_DISABLED" then
             inCombat = true
+            if addon.Client == "foreverBeta" then observer.ResetHistory() end
             Refresh()
             return
         elseif event == "PLAYER_REGEN_ENABLED" then
             inCombat = false
+            if addon.Client == "foreverBeta" then observer.ResetHistory() end
             Refresh()
             return
         elseif event == "NAME_PLATE_UNIT_ADDED" then

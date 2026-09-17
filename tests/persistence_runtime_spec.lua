@@ -2,6 +2,7 @@
 local realPrint = print
 local function RunCase(blockEffects, blockCooldowns)
     local addon, frames, messages, callbacks = {}, {}, {}, {}
+    assert(loadfile("Core/Access.lua"))("ApogeeTank", addon)
     local effectViews, cooldownViews = 0, 0
     function CreateFrame()
         local frame = { scripts = {}, events = {}, shown = true }
