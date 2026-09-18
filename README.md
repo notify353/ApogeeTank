@@ -89,7 +89,11 @@ identities are never learned. The beta uses general applied-debuff slots rather
 than the unverified Era class-column catalog.
 
 These are implemented fallback behaviors, not demonstrated full combat parity.
-No live Tank beta installation or acceptance test has been performed.
+The beta candidate is installed from the durable checkout
+C:/Dev/WoW/ApogeeTank-ForeverBeta. Live testing exposed the player-health color
+failure; its corrected API path was verified live and the fix is committed.
+Reloaded health-bar visibility, Shift-click picker access and grouped threat
+acceptance are still pending.
 Client-specific evidence and export checking are in the [API reference](docs/API_REFERENCE.md).
 
 ## Development and validation

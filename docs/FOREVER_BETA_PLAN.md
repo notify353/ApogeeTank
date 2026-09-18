@@ -5,7 +5,8 @@
 The source checkout and this feature branch start at e970bde, including the
 combined picker, cooldown learning, stance display and recovery improvements.
 Both checkouts were clean before implementation. Classic Era remains supported.
-The candidate does not change either client installation or any other addon.
+The owner approved beta-only installation and subsequent durable closeout.
+Era and other addon installations remain unchanged.
 
 On 2026-09-17 the owner-provided runtime diagnostics reported beta version
 1.60.1, build 69893, interface 16001, WOW_PROJECT_ID 1 (CLASSIC is 2).
@@ -61,20 +62,44 @@ The implementation is a reviewable beta candidate, not full supported combat
 parity. Mock secret sentinels exercise guards but cannot reproduce the client's
 secret-value engine, taint system, timing or server threat availability.
 
-## Next acceptance gate and rollback
+## Durable installation and rollback
 
-The checked installation target is:
+The beta addon junction is:
 C:/Program Files (x86)/World of Warcraft/_classic_beta_/Interface/AddOns/ApogeeTank
 
-That path did not exist on 2026-09-17. After explicit owner approval, a beta-only
-junction to this reviewed worktree can be created, then loaded with a reload.
-Recheck the target immediately before installation; do not overwrite any newly
-existing directory or link. Do not change the Era installation or other addons.
+Its durable target is C:/Dev/WoW/ApogeeTank-ForeverBeta on
+codex/forever-beta-durable, a manually created Git worktree sharing the primary
+repository's Git history. It is outside Codex-managed worktrees. Preserve this
+directory and C:/Dev/WoW/ApogeeTank; neither depends on the archived task.
 
-Rollback of that proposed installation is to disable Tank and remove only the
-newly created junction, leaving its target worktree and character SavedVariables
-intact. Do not recursively delete the worktree. Code baseline is e970bde;
-the candidate is isolated on codex/forever-beta.
+The exact tested code remains d3c1197 (player-health fix), following ebb0ff6
+(beta candidate). Closeout changes documentation only. Before the link switch,
+all 45 tracked files were verified byte-for-byte against the installed source.
+After the switch, all installed files were SHA256-verified against the durable
+checkout and recorded in the external verification manifest.
+
+External rollback/preservation directory:
+C:/Dev/WoW/ApogeeTank-Backups/2026-09-17-beta-closeout
+
+It contains a verified complete-history Git bundle, exact d3c1197 source ZIP,
+a closeout bundle, SHA256 file manifest, and rollback instructions. These
+artifacts do not depend on the disposable Codex worktree. Restore a new stable
+checkout from the bundle or ZIP if needed, verify it, and switch only the beta
+junction. Never recursively delete a junction target or overwrite an unexpected
+path. Keep character SavedVariables untouched.
+
+The prior managed worktree at C:/Users/nickm/.codex/worktrees/d2bd/ApogeeTank
+is no longer an installation dependency. Its task may be archived after final
+verification. The primary Era checkout remains at e970bde; no release, push,
+game restart/reload or live acceptance was performed during closeout.
+
+## Remaining live acceptance
+
+Confirm the corrected own health bar after reload and Shift-left-click it
+outside combat to open the picker. Verify combat closes and blocks the picker.
+The rejected old color call and successful corrected unit-API color transform
+were tested live, but those diagnostics do not establish reloaded HUD or mouse
+interaction acceptance. Grouped threat updates/lead/recovery remain untested.
 
 In beta, test login/reload, entering/exiting combat, zoning, multi-enemy party
 pulls, target/nameplate changes, threat loss/recovery, casts, markers, owned-aura

@@ -152,10 +152,11 @@ Run both:
     pwsh ./scripts/check-wow-api-export.ps1 -Target foreverBeta
 
 Local tests pass for guarded reads, unavailable recovery, native display sinks,
-both TOC startup paths and existing feature regressions. No live Tank beta
-installation, visual parity, protected-frame or party-combat acceptance is
-claimed. See FOREVER_BETA_PLAN.md for the per-feature limits and installation
-approval/rollback plan.
+both TOC startup paths and existing feature regressions. The beta candidate is
+installed; the player-health color failure and corrected API call were checked
+live. Reloaded HUD visual parity, picker interaction, protected-frame behavior
+and party-combat acceptance remain pending. See FOREVER_BETA_PLAN.md for the
+durable installation, rollback and per-feature limits.
 
 
 ### Player health hotfix
