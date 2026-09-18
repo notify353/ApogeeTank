@@ -717,7 +717,7 @@ print("100 health/power event pairs: one player redraw, zero aura scans, idle dr
 -- Full beta TOC startup and transitions use the same UI mock as Era.
 frames, named, driver = {}, {}, nil
 interface, WOW_PROJECT_ID = 16001, 1
-function GetBuildInfo() return "1.60.1", "69893", "", interface end
+function GetBuildInfo() return "1.60.1", "69913", "", interface end
 local secretValue = {}
 function issecretvalue(value) return rawequal(value, secretValue) end
 function canaccessvalue(value) return not issecretvalue(value) end

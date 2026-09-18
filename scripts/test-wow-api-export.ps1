@@ -45,7 +45,7 @@ try {
         Set-Content -LiteralPath (Join-Path $betaDocs $name) -Value 'fixture'
     }
     Set-Content -LiteralPath $build -Value @('Version!STRING:0|Product!STRING:0',
-        '1.15.9.69722|wow_classic_era', '1.60.1.69893|wow_classic_beta')
+        '1.15.9.69722|wow_classic_era', "$($betaMetadata.clientVersion)|wow_classic_beta")
     ExpectFailure 'Beta TOC mismatch accepted' { & $checker @arguments -Target foreverBeta } '*not declared in the TOC*'
     Set-Content -LiteralPath $toc -Value '## Interface: 11509, 16001'
     & $checker @arguments -Target foreverBeta

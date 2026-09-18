@@ -1,5 +1,22 @@
 # Verified client API reference
 
+## Runtime compatibility policy
+
+Routine build-number changes within Classic Era 1.15.x (project 2, interface
+11509) or Forever beta 1.60.x (project 1, interface 16001) do not disable this
+addon. Required capabilities still gate startup. An unreviewed build produces
+one warning per session; it is not a claim of tested compatibility. Other
+families/interfaces stay unsupported. Existing restricted-value and protected
+operation guards remain in force. Optional features keep their own safe
+unavailable/fallback paths.
+
+Development export verification remains strict and separate: a changed installed
+build needs a fresh matching export and contract review. Runtime tolerance does
+not relax export provenance or establish live acceptance. Reviewed beta export:
+1.60.1.69913; fresh on 2026-09-17. Earlier exact-build statements below describe
+historical candidates and are superseded by this policy.
+
+
 ## Export freshness check
 
 Run `pwsh ./scripts/check-wow-api-export.ps1` to compare the installed Era build,
