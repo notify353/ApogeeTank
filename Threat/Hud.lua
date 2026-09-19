@@ -143,17 +143,19 @@ local function CreateRow(index)
     marker:SetSize(MARKER_WIDTH, MARKER_WIDTH)
 
     local name = Style.Text(row)
-    if addon.Client == "foreverBeta" then
-        name:SetPoint("LEFT", marker, "RIGHT", MARKER_GAP, 0)
-    else
+    if addon.Client ~= "foreverBeta" then
         name:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
     end
-    name:SetWidth(NAME_WIDTH); name:SetJustifyH("LEFT")
+    name:SetWidth(NAME_WIDTH)
+    name:SetJustifyH(addon.Client == "foreverBeta" and "CENTER" or "LEFT")
     name:SetWordWrap(false)
 
     local statusBar = CreateFrame("Frame", nil, row)
     statusBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -CONTROL_RIGHT, 1)
     statusBar:SetSize(CONTROL_BAR_WIDTH, STATUS_BAR_HEIGHT)
+    if addon.Client == "foreverBeta" then
+        name:SetPoint("TOP", statusBar, "BOTTOM", 0, -2)
+    end
     local statusBackground = statusBar:CreateTexture(nil, "BACKGROUND")
     statusBackground:SetAllPoints()
     statusBackground:SetColorTexture(unpack(Style.slotColor))
@@ -167,7 +169,11 @@ local function CreateRow(index)
     controlBar:SetPoint("TOPRIGHT", row, "TOPRIGHT", -CONTROL_RIGHT, -1)
     controlBar:SetSize(CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT)
     -- Preserve the accessory gutter; markers and auras stay outside the meter.
-    marker:SetPoint("LEFT", row, "RIGHT", DEBUFF_ICON_GAP, 0)
+    if addon.Client == "foreverBeta" then
+        marker:SetPoint("RIGHT", controlBar, "LEFT", -DEBUFF_ICON_GAP, 0)
+    else
+        marker:SetPoint("LEFT", row, "RIGHT", DEBUFF_ICON_GAP, 0)
+    end
 
     local controlBg = controlBar:CreateTexture(nil, "BACKGROUND")
     controlBg:SetAllPoints(); controlBg:SetColorTexture(unpack(Style.headerColor))
@@ -591,6 +597,7 @@ local function Render(snapshot, presentation)
     local hasFooter = footerText ~= ""
     local height = PLAYER_SECTION_HEIGHT + displayedRows * (ROW_HEIGHT + ROW_GAP)
         + (hasFooter and FOOTER_HEIGHT or 5)
+    if addon.Client == "foreverBeta" and displayedRows > 0 then height = height + 14 end
     frame:SetSize(WIDTH, height)
     frame:Show()
     if rowsChanged then rowsChanged() end

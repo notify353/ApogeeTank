@@ -98,8 +98,9 @@ addon version to use the preserved data; the addon does not reset it for you.
 ## Forever beta HUD
 
 Forever shows only the living hostile current target, including before combat,
-below player health/power at fixed 2x scale. Names sit right of the raid-marker
-slot; enemy rails, debuffs, reminders and the picker demo are disabled. Existing
+below player health/power at fixed 2x scale. Names are centered beneath the enemy
+meter and health strip; raid markers sit to its left. Enemy rails, debuffs,
+reminders and the picker demo are disabled. Existing
 debuff selections remain untouched. Shift-left-click on player health opens a
 compact cooldown-only picker outside combat. Newly learned cooldowns appear
 while it is open; combat closes it and cancels pending opens.

@@ -19,8 +19,9 @@ separate, deliberately narrower presentation:
   No direct addon SetRaidTarget, custom snippet or secure wrapper is used.
 - The target row sits below player health/power, at local y=-24. HUD and picker
   roots use fixed 2x scale; the player top anchor stays 55 UIParent units above
-  center. Cooldown/stance slots are 36 UIParent units. Names sit right of the
-  reserved raid-marker slot. Both severity and selected-target rails are absent.
+  center. Cooldown/stance slots are 36 UIParent units. Names are centered beneath
+  the enemy meter and health strip; the reserved raid-marker slot sits to
+  the left. Both severity and selected-target rails are absent.
 - Native sinks display restricted health, power, raid-marker indices and
   cooldown duration objects. Secrets never enter arithmetic, identity storage
   or persistence. Unreadable casts are omitted. Native display failure clears

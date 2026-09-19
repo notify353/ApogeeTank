@@ -1002,9 +1002,10 @@ end
 assert(betaEnemyRow.marker:IsShown() and betaEnemyRow.marker.spriteCell == 8,
     "readable beta marker did not render")
 local nameAnchor = betaEnemyRow.name.points[1]
-assert(betaEnemyRow.name:IsShown() and nameAnchor[2] == betaEnemyRow.marker
-    and nameAnchor[3] == "RIGHT" and nameAnchor[4] == 5,
-    "right-side name or approved marker spacing changed")
+assert(betaEnemyRow.name:IsShown() and nameAnchor[1] == "TOP"
+    and nameAnchor[2] == betaEnemyRow.statusBar and nameAnchor[3] == "BOTTOM"
+    and nameAnchor[4] == 0 and nameAnchor[5] == -2,
+    "Forever enemy name must be centered beneath the meter's health strip")
 tokens.target.marker = secretValue
 Event("RAID_TARGET_UPDATE")
 Tick(0.1)
