@@ -187,20 +187,22 @@ end
 
 local function BuildEnemy(unit, guid, now, activeChallengers)
     local details, unavailable = O.GetThreatDetails(unit, activeChallengers, true)
-    if unavailable then return nil, true end
-    if next(details) == nil then return nil end
+    local threatKnown = not unavailable and next(details) ~= nil
+    if not threatKnown and addon.Client ~= "foreverBeta" then return nil, unavailable end
     local player = details.player
     local isTanking = player and player.isTanking == true or false
     local control
     if isTanking then
         control = math.max(0, math.min(100, 100 - GetClosestChallenger(details)))
-    else
+    elseif threatKnown then
         local recoveryProgress = player and math.max(0, math.min(100,
             player.scaledPercent or 0)) or 0
         control = -(100 - recoveryProgress)
     end
     local severity
-    if not isTanking then
+    if not threatKnown then
+        severity = "unknown"
+    elseif not isTanking then
         severity = "lost"
     elseif control <= 10 then
         severity = "critical"
@@ -296,8 +298,12 @@ function O.Refresh()
         end
     end
     local sources = {}
-    for unit in pairs(STATIC_SOURCES) do sources[unit] = true end
-    for unit in pairs(nameplateUnits) do sources[unit] = true end
+    if addon.Client == "foreverBeta" then
+        sources.target = true
+    else
+        for unit in pairs(STATIC_SOURCES) do sources[unit] = true end
+        for unit in pairs(nameplateUnits) do sources[unit] = true end
+    end
 
     local byGuid = {}
     local selectedSources = {}
@@ -342,6 +348,9 @@ function O.Refresh()
 
     for guid, previous in pairs(history) do
         if not byGuid[guid] then
+            -- Forever never retains a previous target, even inside Era's
+            -- last-seen window or when the current target becomes unreadable.
+            if addon.Client == "foreverBeta" then resolvedGuids[guid] = true end
             if resolvedGuids[guid] then
                 history[guid] = nil
                 debuffDisplayByGuid[guid] = nil
@@ -360,7 +369,7 @@ function O.Refresh()
 
     table.sort(nextSnapshot.enemies, SortEnemies)
     for _, enemy in ipairs(nextSnapshot.enemies) do
-        nextSnapshot.counts[enemy.severity] = nextSnapshot.counts[enemy.severity] + 1
+        nextSnapshot.counts[enemy.severity] = (nextSnapshot.counts[enemy.severity] or 0) + 1
     end
     nextSnapshot.total = #nextSnapshot.enemies
     nextSnapshot.worst = nextSnapshot.enemies[1]

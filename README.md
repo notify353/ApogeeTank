@@ -13,16 +13,15 @@ unavailable/fallback paths.
 Development export verification remains strict and separate: a changed installed
 build needs a fresh matching export and contract review. Runtime tolerance does
 not relax export provenance or establish live acceptance. Reviewed beta export:
-1.60.1.69913; fresh on 2026-09-17. Earlier exact-build statements below describe
-historical candidates and are superseded by this policy.
+1.60.1.69913; fresh on 2026-09-17.
 
 
 A small independent threat HUD for **WoW Classic Era 1.15.9 (interface 11509)**,
-with an experimental **Forever beta 1.60.1.69893 (interface 16001)** candidate.
+with experimental **Forever beta 1.60.1.69913 (interface 16001)** support.
 It uses fixed placement and behavior for everyone. There are no profiles, key
 bindings, minimap controls or dependencies on other Apogee addons.
 
-## Combat HUD
+## Classic Era combat HUD
 
 - Ten stable enemy rows with directional threat lead/recovery meters, severity
   colors, the original thin baby-blue selected-enemy rail and enemy health or
@@ -42,6 +41,9 @@ members and pets, not an entire raid. Lost enemies briefly retain a last-seen
 warning; known dead enemies and expired history are removed.
 
 ## Debuffs and cooldowns to watch
+
+The two-column picker and debuff/demo behavior below apply to Classic Era.
+Forever uses the cooldown-only behavior described in the next section.
 
 **Shift-left-click the player health bar outside combat** to open the combined
 picker: Debuffs on the left, Cooldowns on the right, each with independent
@@ -93,25 +95,31 @@ the combined picker, which Effects owns; a healthy cooldown tracker still runs.
 A newer cooldown store leaves the debuff picker usable. Install a compatible
 addon version to use the preserved data; the addon does not reset it for you.
 
-Classic Era remains supported. The exact verified Forever beta build is enabled
-for acceptance testing; other beta builds and unknown clients are rejected.
-[Forever beta status](docs/FOREVER_BETA_PLAN.md) records the plan and limitations.
-Beta player health/power and enemy health use native display APIs that accept
-restricted values. Threat comparisons, casts, raid markers and owned debuffs
-require readable data: restricted threat removes the row, restricted auras never
-assert a missing effect, and restricted casts/markers are omitted. Cooldowns can
-still be learned from public real-cooldown flags when the timer is hidden, but
-their numeric display becomes the existing dim question mark. Restricted spell
-identities are never learned. The beta uses general applied-debuff slots rather
-than the unverified Era class-column catalog.
+## Forever beta HUD
 
-These are implemented fallback behaviors, not demonstrated full combat parity.
-The beta candidate is installed from the durable checkout
-C:/Dev/WoW/ApogeeTank-ForeverBeta. Live testing exposed the player-health color
-failure; its corrected API path was verified live and the fix is committed.
-Reloaded health-bar visibility, Shift-click picker access and grouped threat
-acceptance are still pending.
-Client-specific evidence and export checking are in the [API reference](docs/API_REFERENCE.md).
+Forever shows only the living hostile current target, including before combat,
+below player health/power at fixed 2x scale. Names sit right of the raid-marker
+slot; enemy rails, debuffs, reminders and the picker demo are disabled. Existing
+debuff selections remain untouched. Shift-left-click on player health opens a
+compact cooldown-only picker outside combat. Newly learned cooldowns appear
+while it is open; combat closes it and cancels pending opens.
+
+Click the enemy meter to set **skull (left), X (right), or moon (Shift-left)**.
+Native secure actions enforce target eligibility and group marking permissions.
+Unavailable threat leaves a neutral empty meter. Unreadable identity removes the
+observer row, while the native marking button retains a visible neutral meter
+for an eligible target. No threat value or identity is guessed.
+
+Native display APIs handle restricted health, power, raid markers and cooldown
+durations. Held cooldowns stay dimmed with a question mark; unavailable native
+timers also remain unknown. Restricted spell identities are never learned and
+unreadable casts are omitted. Precombat sampling follows events; combat keeps
+the threat refresh cadence. Era behavior remains separate.
+
+The owner has confirmed native countdowns, markers and secure marking live.
+The latest fixes still need live layering, hold/resume, picker discovery and
+grouped-threat checks. See [Forever status](docs/FOREVER_BETA_PLAN.md) and the
+[API reference](docs/API_REFERENCE.md) for exact coverage and limitations.
 
 ## Development and validation
 

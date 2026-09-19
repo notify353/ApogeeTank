@@ -21,6 +21,7 @@ local DEBUFF_ICON_SIZE, DEBUFF_ICON_GAP = Style.iconSize, Style.iconGap
 local DEBUFF_LIMIT = 6
 local ROW_GAP = 1
 local COLORS = {
+    unknown = { 0.5, 0.5, 0.5 },
     safe = { 0.25, 0.85, 0.35 }, slipping = { 1.00, 0.82, 0.15 },
     critical = { 1.00, 0.35, 0.08 }, lost = { 1.00, 0.10, 0.10 },
 }
@@ -35,6 +36,68 @@ local queueSlots = {}
 local observing = false
 local rowsChanged
 local playerClickHandler
+
+local function EnemyRowTop(index)
+    return -(PLAYER_SECTION_HEIGHT + (index - 1) * (ROW_HEIGHT + ROW_GAP))
+end
+
+local markerButton, markerSetupDriver
+local function InitializeMarkerButton()
+    if addon.Client ~= "foreverBeta" or markerButton then return end
+    if InCombatLockdown() then
+        if not markerSetupDriver then
+            markerSetupDriver = CreateFrame("Frame")
+            markerSetupDriver:RegisterEvent("PLAYER_REGEN_ENABLED")
+            markerSetupDriver:SetScript("OnEvent", InitializeMarkerButton)
+        end
+        return
+    end
+    local scale = Style.GetScale()
+    -- Independent of the dynamically resized HUD: protected parent/anchor
+    -- relationships must not prevent ordinary HUD updates during combat.
+    local button = CreateFrame("Button", "ApogeeTankTargetMarkerButton", UIParent,
+        "SecureActionButtonTemplate")
+    button:SetScale(scale)
+    button:SetSize(CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT)
+    button:SetPoint("TOPRIGHT", UIParent, "CENTER",
+        WIDTH / 2 - ROW_INSET - CONTROL_RIGHT,
+        FIXED_ANCHOR_Y / scale + EnemyRowTop(1) - 1)
+    button:SetFrameStrata("MEDIUM")
+    button:SetFrameLevel(1)
+    -- This native-visible meter remains an honest marking affordance even
+    -- when the observer cannot read identity. It owns no threat estimate.
+    -- Ordinary HUD content renders above it without protected relationships.
+    Style.Background(button, Style.headerColor)
+    local zeroLine = button:CreateTexture(nil, "OVERLAY")
+    zeroLine:SetPoint("TOP", button, "TOP", 0, -1)
+    zeroLine:SetPoint("BOTTOM", button, "BOTTOM", 0, 1)
+    zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
+    button:RegisterForClicks("AnyDown")
+    button:SetAttribute("useOnKeyDown", true)
+    button:SetAttribute("unit", "target")
+    button:SetAttribute("*action*", "set")
+    button:SetAttribute("*type*", "")
+    for _, prefix in ipairs({ "shift-", "ctrl-", "alt-", "ctrl-shift-",
+        "alt-shift-", "alt-ctrl-", "alt-ctrl-shift-" }) do
+        button:SetAttribute(prefix .. "harmbutton1", "")
+        button:SetAttribute(prefix .. "harmbutton2", "")
+    end
+    -- Native secure-button remapping checks hostility at activation. Numeric
+    -- buttons have no action, so friendly targets cannot fall through to one.
+    -- No restricted snippet: this beta's snippet compiler failed live.
+    button:SetAttribute("harmbutton1", "skull")
+    button:SetAttribute("harmbutton2", "cross")
+    button:SetAttribute("shift-harmbutton1", "moon")
+    for name, id in pairs({ skull = 8, cross = 7, moon = 5 }) do
+        button:SetAttribute("*type-" .. name, "raidtarget")
+        button:SetAttribute("*marker-" .. name, id)
+    end
+    button:Hide()
+    RegisterStateDriver(button, "visibility", "[@target,harm,nodead] show; hide")
+    markerButton = button
+    for _, row in ipairs(rows) do row.controlBg:Hide(); row.zeroLine:Hide() end
+    if markerSetupDriver then markerSetupDriver:UnregisterEvent("PLAYER_REGEN_ENABLED") end
+end
 
 local function NativeBar(parent)
     local bar = CreateFrame("StatusBar", nil, parent)
@@ -65,21 +128,26 @@ end
 local function CreateRow(index)
     local row = CreateFrame("Frame", nil, frame)
     row:SetPoint("TOPLEFT", frame, "TOPLEFT", ROW_INSET,
-        -(PLAYER_SECTION_HEIGHT + (index - 1) * (ROW_HEIGHT + ROW_GAP)))
+        EnemyRowTop(index))
     row:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -ROW_INSET,
-        -(PLAYER_SECTION_HEIGHT + (index - 1) * (ROW_HEIGHT + ROW_GAP)))
+        EnemyRowTop(index))
     row:SetHeight(ROW_HEIGHT)
 
     local rail = row:CreateTexture(nil, "ARTWORK")
     rail:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
     rail:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
     rail:SetWidth(3)
+    rail:SetShown(addon.Client ~= "foreverBeta")
 
     local marker = row:CreateTexture(nil, "ARTWORK")
     marker:SetSize(MARKER_WIDTH, MARKER_WIDTH)
 
     local name = Style.Text(row)
-    name:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
+    if addon.Client == "foreverBeta" then
+        name:SetPoint("LEFT", marker, "RIGHT", MARKER_GAP, 0)
+    else
+        name:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
+    end
     name:SetWidth(NAME_WIDTH); name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
 
@@ -103,12 +171,14 @@ local function CreateRow(index)
 
     local controlBg = controlBar:CreateTexture(nil, "BACKGROUND")
     controlBg:SetAllPoints(); controlBg:SetColorTexture(unpack(Style.headerColor))
+    controlBg:SetShown(addon.Client ~= "foreverBeta" or not markerButton)
     local controlFill = controlBar:CreateTexture(nil, "ARTWORK")
     controlFill:SetWidth(0)
     local zeroLine = controlBar:CreateTexture(nil, "OVERLAY")
     zeroLine:SetPoint("TOP", controlBar, "TOP", 0, -1)
     zeroLine:SetPoint("BOTTOM", controlBar, "BOTTOM", 0, 1)
     zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
+    zeroLine:SetShown(addon.Client ~= "foreverBeta" or not markerButton)
     -- Original Health Bars rail: full row height with a deliberate 4px gap
     -- from the meters. Keep it outside child frames so they cannot obscure it.
     local targetIndicator = row:CreateTexture(nil, "OVERLAY")
@@ -118,7 +188,7 @@ local function CreateRow(index)
     targetIndicator:SetColorTexture(unpack(TARGET_COLOR))
 
     local debuffIcons = {}
-    for slot = 1, DEBUFF_LIMIT do
+    for slot = 1, (addon.Client == "foreverBeta" and 0 or DEBUFF_LIMIT) do
         local holder = CreateFrame("Frame", nil, row)
         holder:SetSize(DEBUFF_ICON_SIZE, DEBUFF_ICON_SIZE)
         if slot == 1 then
@@ -134,9 +204,12 @@ local function CreateRow(index)
         holder:Hide()
         debuffIcons[slot] = holder
     end
-    local debuffOverflow = Style.Text(row, 10)
-    debuffOverflow:SetPoint("LEFT", debuffIcons[DEBUFF_LIMIT], "RIGHT", 3, 0)
-    debuffOverflow:Hide()
+    local debuffOverflow
+    if addon.Client ~= "foreverBeta" then
+        debuffOverflow = Style.Text(row, 10)
+        debuffOverflow:SetPoint("LEFT", debuffIcons[DEBUFF_LIMIT], "RIGHT", 3, 0)
+        debuffOverflow:Hide()
+    end
 
     row.rail = rail
     row.marker, row.name = marker, name
@@ -146,6 +219,7 @@ local function CreateRow(index)
         row.nativeHealth:SetStatusBarColor(D.UnitBar.GetHealthColor(1))
     end
     row.controlBar, row.controlFill = controlBar, controlFill
+    row.controlBg = controlBg
     row.zeroLine = zeroLine
     row.targetIndicator = targetIndicator
     row.debuffIcons, row.debuffOverflow = debuffIcons, debuffOverflow
@@ -343,9 +417,12 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
     row.enemy = enemy
     local color = COLORS[enemy.severity] or COLORS.safe
     local isCurrentTarget = A.IsCurrentTarget(enemy, currentTargetGuid)
-    row.targetIndicator:SetShown(isCurrentTarget)
+    row.targetIndicator:SetShown(addon.Client ~= "foreverBeta" and isCurrentTarget)
     row.rail:SetColorTexture(color[1], color[2], color[3], 1)
-    if enemy.raidMarker then
+    if addon.Client == "foreverBeta" then
+        row.marker:SetShown(enemy.live ~= false and enemy.unit ~= nil
+            and D.UnitAPI.PaintNativeRaidMarker(row.marker, enemy.unit))
+    elseif enemy.raidMarker then
         row.marker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
         if SetRaidTargetIconTexture then
             SetRaidTargetIconTexture(row.marker, enemy.raidMarker)
@@ -358,7 +435,8 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
     end
     local name = A.GetEnemyName(enemy)
     local suffix = enemy.stale and "  |cff77777f> last seen|r" or ""
-    row.name:SetText(name .. suffix)
+    local nameText = name .. suffix
+    if row.nameText ~= nameText then row.name:SetText(nameText); row.nameText = nameText end
     if isCurrentTarget then
         row.name:SetTextColor(0.92, 0.97, 1.00)
     else
@@ -368,7 +446,7 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
     RenderStatusBar(row, enemy, now)
 
     local display = A.GetControlDisplay(enemy)
-    row.controlBar:SetShown(display ~= nil)
+    row.controlBar:SetShown(display ~= nil or addon.Client == "foreverBeta")
     if display then
         if row.controlDirection ~= display.direction then
             SetControlDirection(row, display.direction)
@@ -395,8 +473,10 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
             holder:Hide()
         end
     end
-    row.debuffOverflow:SetText(overflow > 0 and ("+" .. overflow) or "")
-    row.debuffOverflow:SetShown(overflow > 0)
+    if row.debuffOverflow then
+        row.debuffOverflow:SetText(overflow > 0 and ("+" .. overflow) or "")
+        row.debuffOverflow:SetShown(overflow > 0)
+    end
     row:Show()
 end
 
@@ -492,7 +572,7 @@ local function Render(snapshot, presentation)
     snapshot = snapshot or { enemies = {}, total = 0, limitedCoverage = true }
     presentation = presentation or A.ReconcileQueue(snapshot, {})
     local footerText = A.GetFooterText(snapshot, presentation)
-    overflowLabel:SetText(footerText)
+    if A.footerText ~= footerText then overflowLabel:SetText(footerText); A.footerText = footerText end
     RenderPlayerStatus()
     local currentTargetGuid = D.UnitAPI.GetGUID("target")
     local now
@@ -570,7 +650,7 @@ end
 function A.Refresh()
     A.Build()
     local snapshot
-    if not D.IsInCombat() then
+    if not D.IsInCombat() and addon.Client ~= "foreverBeta" then
         if observing then D.Observer.ResetHistory(); observing = false end
         queueSlots = {}
         snapshot = demoSnapshot or EmptySnapshot(false)
@@ -588,14 +668,18 @@ end
 function A.Hide() if frame then frame:Hide() end end
 
 function A.Build()
+    InitializeMarkerButton()
     if frame then return frame end
     frame = CreateFrame("Frame", "ApogeeTankThreatHud", UIParent, "BackdropTemplate")
+    local scale = Style.GetScale()
+    frame:SetScale(scale)
     frame:SetSize(WIDTH, ROW_HEIGHT + FOOTER_HEIGHT)
     -- Anchor the top edge, which owns the player-status cluster. Enemy rows and
     -- the footer may change the frame's height, but they can now only expand
     -- downward and cannot move health, power, reminders, or cooldowns.
-    frame:SetPoint("TOP", UIParent, "CENTER", 0, FIXED_ANCHOR_Y)
+    frame:SetPoint("TOP", UIParent, "CENTER", 0, FIXED_ANCHOR_Y / scale)
     frame:SetMovable(false); frame:EnableMouse(false); frame:SetFrameStrata("MEDIUM")
+    if addon.Client == "foreverBeta" then frame:SetFrameLevel(10) end
     playerStatusAnchor = CreateFrame("Frame", nil, frame)
     playerStatusAnchor:SetPoint("TOPRIGHT", frame, "TOPRIGHT",
         -(ROW_INSET + CONTROL_RIGHT), 0)

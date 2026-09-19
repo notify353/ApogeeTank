@@ -13,6 +13,11 @@ local Style = {
 }
 addon.Style = Style
 
+function Style.GetScale()
+    -- Keybinds uses 36px slots; Tank's 18px slots inherit this at the roots.
+    return addon.Client == "foreverBeta" and 2 or 1
+end
+
 function Style.Background(parent, color)
     local texture = parent:CreateTexture(nil, "BACKGROUND")
     texture:SetAllPoints()

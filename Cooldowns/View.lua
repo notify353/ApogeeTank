@@ -4,6 +4,33 @@ local Style = addon.Style
 local STRIDE = Style.iconSize + Style.iconGap
 local CLUSTER_GAP = 1
 
+local function RenderNativeTimer(icon, state)
+    if not state or not state.nativeDuration or state.enabled == false then
+        if icon.cooldown then icon.cooldown:Hide() end
+        icon.lastNativeState = nil
+        return false
+    end
+    if not icon.cooldown then
+        local cooldown = CreateFrame("Cooldown", nil, icon)
+        cooldown:SetAllPoints()
+        cooldown:EnableMouse(false)
+        cooldown:SetDrawSwipe(false)
+        cooldown:SetDrawEdge(false)
+        cooldown:SetDrawBling(false)
+        cooldown:SetCountdownFont("GameFontHighlightSmall")
+        icon.cooldown = cooldown
+    end
+    local hasCharges = state.charges and state.charges > 0
+    if icon.lastNativeState ~= state then
+        icon.cooldown:SetHideCountdownNumbers(hasCharges == true)
+        icon.nativeApplied = pcall(icon.cooldown.SetCooldownFromDurationObject,
+            icon.cooldown, state.nativeDuration, true)
+        icon.lastNativeState = state
+    end
+    icon.cooldown:SetShown(icon.nativeApplied)
+    return icon.nativeApplied
+end
+
 function addon.CooldownView.Create(getAnchor)
     local icons = {}
     local overflow
@@ -31,12 +58,17 @@ function addon.CooldownView.Create(getAnchor)
                         icon.lastTexture = entry.icon
                     end
                     local state = states[entry.spellId]
-                    if state and state.unknown then state = nil end
+                    local native = RenderNativeTimer(icon, state)
+                    if state and state.unknown and not native and state.enabled ~= false then state = nil end
                     local remaining = state and math.max(0, state.start + state.duration - now) or nil
                     local label, alpha
                     if state and state.charges and state.charges > 0 then
                         label = tostring(state.charges)
                         alpha = 1
+                    elseif native then
+                        -- The native child owns the countdown; no Lua timer
+                        -- arithmetic or readiness guess is made from secrets.
+                        label, alpha = "", 1
                     elseif remaining and remaining > 0 and state.enabled then
                         label = remaining >= 60 and (math.ceil(remaining / 60) .. "m")
                             or tostring(math.ceil(remaining))

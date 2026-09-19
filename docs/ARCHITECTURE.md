@@ -54,7 +54,9 @@ Keep fixed feature limits with their owners; do not make all constants settings.
   the health frame's mouse script. Neither is a saved binding or secure action.
 - `EffectsView.Create(options)` takes named models/callbacks. Effects deliberately
   owns the existing combined picker; it uses the cooldown runtime's `GetModel`,
-  `Refresh` and `Clear` methods rather than its frames or driver state. A future
+  `Refresh`, `Clear` and `SetChangedHandler` methods rather than its frames or
+  driver state. Cooldown revision changes notify the picker without polling.
+  Forever supplies only the cooldown column and disables effects/demo. A future
   third consumer may justify a separate picker module; today a generic settings
   framework would add indirection without a need.
 

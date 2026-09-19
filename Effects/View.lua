@@ -138,7 +138,8 @@ function View.Create(options)
     local function BuildWindow()
         if window then return end
         window = CreateFrame("Frame", "ApogeeTankEffectsWindow", UIParent, "BackdropTemplate")
-        window:SetSize(680, 312)
+        window:SetScale(Style.GetScale())
+        window:SetSize(model and 680 or 340, 312)
         window:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
         window:SetFrameStrata("DIALOG")
         window:EnableMouse(true)
@@ -159,15 +160,19 @@ function View.Create(options)
             edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
         window:SetBackdropColor(unpack(Style.panelColor))
         window:SetBackdropBorderColor(unpack(Style.borderColor))
-        local divider = window:CreateTexture(nil, "BACKGROUND")
-        divider:SetPoint("TOP", window, "TOP", 0, -14)
-        divider:SetSize(1, 280)
-        divider:SetColorTexture(unpack(Style.headerColor))
+        if model then
+            local divider = window:CreateTexture(nil, "BACKGROUND")
+            divider:SetPoint("TOP", window, "TOP", 0, -14)
+            divider:SetSize(1, 280)
+            divider:SetColorTexture(unpack(Style.headerColor))
+        end
         local close = CreateFrame("Button", nil, window, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", window, "TOPRIGHT", -2, -2)
         close:SetScript("OnClick", function() window:Hide() end)
-        if cooldowns and cooldowns.GetModel() then BuildColumn("Cooldowns", cooldowns.GetModel(), 358, true) end
-        BuildColumn("Debuffs", model, 18, false)
+        if cooldowns and cooldowns.GetModel() then
+            BuildColumn("Cooldowns", cooldowns.GetModel(), model and 358 or 18, true)
+        end
+        if model then BuildColumn("Debuffs", model, 18, false) end
         UISpecialFrames = UISpecialFrames or {}
         UISpecialFrames[#UISpecialFrames + 1] = "ApogeeTankEffectsWindow"
         window:Hide()

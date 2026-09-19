@@ -7,6 +7,7 @@ function addon.StartThreat()
     local driver = CreateFrame("Frame")
     local started, dirty, elapsedSinceRefresh = false, true, 0
     local inCombat = false
+    local watchingTarget = false
 
     local function GetUnitHarmfulAuraSnapshot(unit)
         local auras = addon.Auras.ReadPlayerHarmful(unit)
@@ -15,15 +16,17 @@ function addon.StartThreat()
     end
 
     local function SeedNameplates()
+        if addon.Client == "foreverBeta" then return end
         for _, plate in ipairs(C_NamePlate.GetNamePlates()) do
             observer.OnNamePlateAdded(plate.namePlateUnitToken)
         end
     end
 
     local function Refresh()
-        hud.Refresh()
+        local snapshot = hud.Refresh()
+        watchingTarget = addon.Client == "foreverBeta" and snapshot.total > 0
         dirty, elapsedSinceRefresh = false, 0
-        driver:SetShown(inCombat)
+        driver:SetShown(inCombat or watchingTarget)
     end
 
     local function Start()
@@ -33,7 +36,8 @@ function addon.StartThreat()
         observer.Initialize({
             Now = GetTime,
             UnitAPI = api,
-            Auras = { GetUnitHarmfulAuraSnapshot = GetUnitHarmfulAuraSnapshot },
+            Auras = addon.Client ~= "foreverBeta"
+                and { GetUnitHarmfulAuraSnapshot = GetUnitHarmfulAuraSnapshot } or nil,
             DebuffData = addon.Client ~= "foreverBeta" and addon.ThreatDebuffData or nil,
             GetClassToken = function() return select(2, UnitClass("player")) end,
         })
@@ -50,6 +54,7 @@ function addon.StartThreat()
         "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED",
         "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED", "UPDATE_MOUSEOVER_UNIT",
         "GROUP_ROSTER_UPDATE", "UNIT_TARGET", "UNIT_PET", "RAID_TARGET_UPDATE",
+        "UNIT_FACTION", "UNIT_FLAGS", "UNIT_NAME_UPDATE",
         "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED",
         "UNIT_THREAT_LIST_UPDATE", "UNIT_THREAT_SITUATION_UPDATE", "UNIT_AURA",
         "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_POWER_FREQUENT", "UNIT_MAXPOWER",
@@ -86,11 +91,20 @@ function addon.StartThreat()
             if addon.Client == "foreverBeta" then observer.ResetHistory() end
             Refresh()
             return
+        elseif event == "PLAYER_TARGET_CHANGED" and addon.Client == "foreverBeta" then
+            -- Clear cached ownership/identity before reusing the target token.
+            -- Refresh synchronously so no old target accessories linger.
+            observer.ResetHistory()
+            Refresh()
+            return
         elseif event == "NAME_PLATE_UNIT_ADDED" then
+            if addon.Client == "foreverBeta" then return end
             observer.OnNamePlateAdded(unit)
         elseif event == "NAME_PLATE_UNIT_REMOVED" then
+            if addon.Client == "foreverBeta" then return end
             observer.OnNamePlateRemoved(unit)
         elseif event == "UNIT_AURA" then
+            if addon.Client == "foreverBeta" then return end
             observer.InvalidateAuras(unit)
         end
         -- Coalesce bursty unit events; polling also covers target-chain changes
@@ -102,8 +116,10 @@ function addon.StartThreat()
     driver:SetScript("OnUpdate", function(_, elapsed)
         if not started then return end
         elapsedSinceRefresh = elapsedSinceRefresh + elapsed
+        -- Precombat data changes arrive through events. Keep combat polling for
+        -- threat freshness and Era target-chain/last-seen behavior.
         if elapsedSinceRefresh >= 0.1 and (dirty or inCombat) then Refresh() end
-        if inCombat then hud.Tick(elapsed) end
+        if inCombat or watchingTarget then hud.Tick(elapsed) end
     end)
 
 end

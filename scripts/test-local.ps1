@@ -1,9 +1,11 @@
 [CmdletBinding()]
-param()
+param([string]$ForeverExportPath = $env:APOGEE_FOREVER_EXPORT)
 $ErrorActionPreference = 'Stop'
 $tankRepo = Split-Path -Parent $PSScriptRoot
 Push-Location $tankRepo
+$previousExport = $env:APOGEE_FOREVER_EXPORT
 try {
+    $env:APOGEE_FOREVER_EXPORT = $ForeverExportPath
     $version = (& lua -v 2>&1 | Out-String)
     if ($version -notmatch 'Lua 5\.1\.') { throw 'Lua 5.1 is required.' }
     $toc = Get-Content -LiteralPath 'ApogeeTank.toc'
@@ -41,4 +43,4 @@ try {
     }
     Write-Host 'All Apogee Tank local checks passed.'
 }
-finally { Pop-Location }
+finally { $env:APOGEE_FOREVER_EXPORT = $previousExport; Pop-Location }

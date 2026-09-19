@@ -42,6 +42,20 @@ function U.PaintNativePower(bar, unit)
     end)
 end
 
+function U.PaintNativeRaidMarker(texture, unit)
+    if not U.Exists(unit) then return false end
+    local ok, painted = pcall(function()
+        local index = _G.GetRaidTargetIndex(unit)
+        if Access.CanRead(index) and index == nil then return false end
+        texture:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
+        -- Forever's native texture accepts restricted cells directly. Never
+        -- copy the index into a snapshot or calculate texture coordinates.
+        texture:SetSpriteSheetCell(index, 4, 4)
+        return true
+    end)
+    return ok and painted == true
+end
+
 function U.Exists(unitId)
     if unitId == nil or UnitExists == nil then return false end
     local exists = UnitExists(unitId)

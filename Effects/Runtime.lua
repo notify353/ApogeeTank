@@ -3,6 +3,8 @@ local Access = addon.Access
 local UnitIsUnit = Access.Global("UnitIsUnit")
 
 function addon.StartEffects(deps)
+    local effectsEnabled = deps.EffectsEnabled ~= false
+    local initialized = false
     local driver = CreateFrame("Frame")
     local model, view, pendingToggle
     local dirty, elapsedSinceEvent = false, 0
@@ -14,7 +16,7 @@ function addon.StartEffects(deps)
     end
     local function RequestRefresh(observe)
         if initializationFailed then return end
-        if observe == true then needsObservation = true end
+        if effectsEnabled and observe == true then needsObservation = true end
         dirty = true
         driver:Show()
     end
@@ -32,7 +34,7 @@ function addon.StartEffects(deps)
         end
     end
     local function Refresh()
-        if not model then return end
+        if not initialized then return end
         UpdateAccess()
         if not view then
             view = addon.EffectsView.Create({
@@ -45,7 +47,7 @@ function addon.StartEffects(deps)
                     driver:Hide()
                 end,
                 OnVisibility = function(shown)
-                    deps.SetDemo(shown, model.GetEntries)
+                    deps.SetDemo(shown, model and model.GetEntries)
                 end,
             })
         end
@@ -56,7 +58,7 @@ function addon.StartEffects(deps)
             if auras then model.Observe(auras) end
         end
         local presentations = {}
-        for _, row in ipairs(deps.GetRows()) do
+        for _, row in ipairs(effectsEnabled and deps.GetRows() or {}) do
             presentations[#presentations + 1] = {
                 anchor = row.anchor, missingAnchor = row.missingAnchor, guid = row.guid,
                 missing = row.demoMissing or model.GetMissing(row.playerAuras, row.live),
@@ -72,17 +74,20 @@ function addon.StartEffects(deps)
     end
     driver:SetScript("OnEvent", function(_, event, unit)
         if initializationFailed or not Access.CanRead(unit) then return end
-        if event == "PLAYER_LOGIN" and not model then
-            local reason
-            model, reason = addon.EffectsModel.Create(ApogeeTankEffectsDB)
-            if not model then
-                initializationFailed = true
-                deps.SetPlayerClickHandler(nil)
-                driver:Hide()
-                print("Apogee Tank: Debuff reminders and picker disabled. " .. reason)
-                return
+        if event == "PLAYER_LOGIN" and not initialized then
+            initialized = true
+            if effectsEnabled then
+                local reason
+                model, reason = addon.EffectsModel.Create(ApogeeTankEffectsDB)
+                if not model then
+                    initializationFailed = true
+                    deps.SetPlayerClickHandler(nil)
+                    driver:Hide()
+                    print("Apogee Tank: Debuff reminders and picker disabled. " .. reason)
+                    return
+                end
+                ApogeeTankEffectsDB = model.GetSaved()
             end
-            ApogeeTankEffectsDB = model.GetSaved()
         elseif event == "PLAYER_ENTERING_WORLD" then
             inCombat = UnitAffectingCombat("player") == true
         elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
@@ -104,9 +109,12 @@ function addon.StartEffects(deps)
             or event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD")
     end)
     for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD",
-        "PLAYER_LEAVING_WORLD", "PLAYER_TARGET_CHANGED", "UNIT_AURA", "UNIT_HEALTH",
-        "UNIT_FACTION", "UNIT_FLAGS", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }) do
+        "PLAYER_LEAVING_WORLD", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }) do
         driver:RegisterEvent(event)
+    end
+    if effectsEnabled then
+        for _, event in ipairs({ "PLAYER_TARGET_CHANGED", "UNIT_AURA", "UNIT_HEALTH",
+            "UNIT_FACTION", "UNIT_FLAGS" }) do driver:RegisterEvent(event) end
     end
     driver:SetScript("OnUpdate", function(_, elapsed)
         if not dirty then driver:Hide(); return end
@@ -115,11 +123,12 @@ function addon.StartEffects(deps)
         elapsedSinceEvent = 0
         Refresh()
     end)
-    deps.SetRowsChangedHandler(function()
+    if effectsEnabled then deps.SetRowsChangedHandler(function()
         -- Update accessories with the row assignment itself, so a recycled row
         -- never temporarily displays the previous enemy's missing effects.
         RequestRefresh()
         if model then Refresh() end
-    end)
+    end) end
+    if deps.Cooldowns then deps.Cooldowns.SetChangedHandler(RequestRefresh) end
     driver:Hide()
 end

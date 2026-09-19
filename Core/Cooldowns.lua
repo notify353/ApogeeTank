@@ -35,8 +35,18 @@ function API.Read(id, fromCooldownEvent)
             enabled = cooldown.isEnabled, start = 0, duration = 0, unknown = true }
         if charges and charges.maxCharges > 0 then
             state.realCooldown = charges.isActive == true
+            if Access.CanRead(charges.currentCharges) then state.charges = charges.currentCharges end
         elseif fromCooldownEvent and cooldown.isOnGCD ~= nil then
             state.realCooldown = cooldown.isActive and not cooldown.isOnGCD
+        end
+        if addon.Client == "foreverBeta" then
+            -- These opaque objects let the native widget render restricted
+            -- timers. Never read their values or persist them as spell data.
+            if charges and charges.maxCharges > 0 then
+                state.nativeDuration = Access.Call(C_Spell.GetSpellChargeDuration, id)
+            else
+                state.nativeDuration = Access.Call(C_Spell.GetSpellCooldownDuration, id, true)
+            end
         end
         return state
     end

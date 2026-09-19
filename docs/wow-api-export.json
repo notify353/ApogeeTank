@@ -18,8 +18,10 @@
       "recordedOn": "2026-09-17",
       "requiredFiles": [
         "RaidMarkersDocumentation.lua",
+        "SimpleTextureBaseAPIDocumentation.lua",
         "SpellBookDocumentation.lua",
         "SimpleStatusBarAPIDocumentation.lua",
+        "FrameAPICooldownDocumentation.lua",
         "CurveUtilDocumentation.lua",
         "LuaColorCurveObjectAPIDocumentation.lua",
         "LuaCurveObjectBaseAPIDocumentation.lua",

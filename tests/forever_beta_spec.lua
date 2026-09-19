@@ -90,7 +90,29 @@ assert(addon.CooldownAPI.Read(1, true).unknown and addon.CooldownAPI.Read(1, tru
 cooldown.duration = 10
 charges = { maxCharges = 2, currentCharges = secret, isActive = true }
 assert(addon.CooldownAPI.Read(1, true).unknown and addon.CooldownAPI.Read(1, true).realCooldown)
+local durationObject = setmetatable({}, {
+    __index = function() error("duration object inspected") end,
+    __tostring = function() error("duration object formatted") end,
+})
+C_Spell.GetSpellCooldownDuration = function(id, ignoreGCD)
+    assert(id == 1 and ignoreGCD == true, "native duration must exclude GCD")
+    return durationObject
+end
+C_Spell.GetSpellChargeDuration = function(id)
+    assert(id == 1)
+    return durationObject
+end
+assert(addon.CooldownAPI.Read(1, true).nativeDuration == durationObject,
+    "restricted charge duration was discarded")
 charges = nil
+cooldown.duration = secret
+assert(addon.CooldownAPI.Read(1, true).nativeDuration == durationObject,
+    "restricted spell duration was discarded")
+C_Spell.GetSpellCooldownDuration = function() error("temporarily unavailable") end
+assert(addon.CooldownAPI.Read(1, true).unknown
+    and not addon.CooldownAPI.Read(1, true).nativeDuration,
+    "failed native duration claimed numeric readiness")
+cooldown.duration = 10
 cooldown.isOnGCD = true
 assert(not addon.CooldownAPI.Read(1, true).realCooldown)
 assert(addon.CooldownAPI.Read(secret, true) == nil)

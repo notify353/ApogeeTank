@@ -10,6 +10,7 @@ function addon.StartCooldowns(anchor)
     local elapsed = 0
     local inCombat = false
     local initializationFailed = false
+    local changedHandler, notifiedRevision
     local function UpdateStances()
         stances = addon.CooldownAPI.GetStanceSpells()
         for id in pairs(stances) do
@@ -26,6 +27,11 @@ function addon.StartCooldowns(anchor)
     end
     local function Refresh()
         if not model then return end
+        local currentRevision = model.GetRevision()
+        if currentRevision ~= notifiedRevision then
+            notifiedRevision = currentRevision
+            if changedHandler then changedHandler() end
+        end
         local now = GetTime()
         if inCombat then view.Render(Entries(), states, now)
         else view.Hide() end
@@ -141,6 +147,7 @@ function addon.StartCooldowns(anchor)
     driver:Hide()
     return {
         GetModel = function() return model end,
+        SetChangedHandler = function(handler) changedHandler = handler end,
         -- Picker changes need fresh state; animation ticks only render caches.
         Refresh = function() Sample(false) end,
         Clear = function() candidates, states = {}, {}; Refresh() end,

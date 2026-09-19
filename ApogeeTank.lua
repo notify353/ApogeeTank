@@ -4,10 +4,12 @@ if not addon.Client then return end
 addon.StartThreat()
 addon.StartStance(addon.ThreatHud.GetPlayerStatusAnchor)
 local cooldowns = addon.StartCooldowns(addon.ThreatHud.GetPlayerStatusAnchor)
-local demo = addon.CreateThreatDemo()
+local effectsEnabled = addon.Client ~= "foreverBeta"
+local demo = effectsEnabled and addon.CreateThreatDemo() or nil
 addon.StartEffects({
+    EffectsEnabled = effectsEnabled,
     Cooldowns = cooldowns,
-    SetDemo = demo.SetShown,
+    SetDemo = demo and demo.SetShown or function() end,
     GetRows = addon.ThreatHud.GetEnemyRows,
     SetRowsChangedHandler = addon.ThreatHud.SetRowsChangedHandler,
     SetPlayerClickHandler = addon.ThreatHud.SetPlayerClickHandler,
