@@ -7,7 +7,7 @@ local secret = setmetatable({}, {
 })
 function issecretvalue(value) return rawequal(value, secret) end
 function canaccessvalue(value) return not issecretvalue(value) end
-local version, build, interface = "1.60.1", "69977", 16001
+local version, build, interface = "1.60.1", "70009", 16001
 WOW_PROJECT_ID, WOW_PROJECT_CLASSIC = 1, 2
 function GetBuildInfo() return version, build, "", interface end
 local function Load(path) assert(loadfile(path))("ApogeeTank", addon) end
@@ -23,14 +23,14 @@ assert(not addon.Client,"Missing frame capability must stop startup")
 CreateFrame=create; print=originalPrint
 for _, change in ipairs({
     { "1.15.9", "69722", 11509, 2 },
-    { "1.60.2", "69977", 16002, 1 },
-    { "1.60.1", "69977", 16001, 2 }, { "12.0.0", "69977", 120000, 1 },
+    { "1.60.2", "70009", 16002, 1 },
+    { "1.60.1", "70009", 16001, 2 }, { "12.0.0", "70009", 120000, 1 },
 }) do
     version, build, interface, WOW_PROJECT_ID = unpack(change)
     addon.Client = nil; Load("Core/Client.lua")
     assert(addon.Client == nil, "unknown client admitted")
 end
-version, build, interface, WOW_PROJECT_ID = "1.60.1", "69977", 16001, 1
+version, build, interface, WOW_PROJECT_ID = "1.60.1", "70009", 16001, 1
 local savedGuard = canaccessvalue
 canaccessvalue = nil; Load("Core/Client.lua")
 assert(addon.Client == nil, "beta enabled without secret guards")

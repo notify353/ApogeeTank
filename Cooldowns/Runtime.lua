@@ -23,10 +23,15 @@ function addon.StartCooldowns(anchor, getGeometry)
         if not model then return end
         for _, spell in ipairs(addon.CooldownAPI.GetDefaultSpells()) do
             local ignored = false
+            local choices = {}
             for _, entry in ipairs(model.GetEntries()) do
-                for _, id in ipairs(spell.ranks) do
-                    if entry.spellId == id and not entry.watched then ignored = true end
-                end
+                choices[entry.spellId] = entry.watched == true
+            end
+            -- Prefer the newest recorded rank's explicit choice. An older
+            -- opt-out must not undo a subsequent recheck of its replacement.
+            for index = #spell.ranks, 1, -1 do
+                local watched = choices[spell.ranks[index]]
+                if watched ~= nil then ignored = not watched; break end
             end
             model.Observe({ spell })
             if ignored then model.SetWatched(spell.spellId, false) end
@@ -115,8 +120,16 @@ function addon.StartCooldowns(anchor, getGeometry)
         states = nextStates
         Refresh()
     end
-    local function UpdateCastability()
+    local function UpdateCastability(spellID)
         if not model then return end
+        if spellID then
+            Entries()
+            local state = states[spellID]
+            if not rangeWatched[spellID] or not state or not addon.CooldownAPI.Castable then return end
+            state.castable = addon.CooldownAPI.Castable(spellID)
+            Refresh()
+            return
+        end
         for _, entry in ipairs(Entries()) do
             local state = states[entry.spellId]
             if entry.watched and state and addon.CooldownAPI.Castable then
@@ -157,8 +170,11 @@ function addon.StartCooldowns(anchor, getGeometry)
             candidates = {}
             driver:Hide()
             if view then view.Hide() end
-        elseif event == "SPELL_UPDATE_USABLE" or event == "SPELL_RANGE_CHECK_UPDATE"
-            or event == "PLAYER_TARGET_CHANGED" then
+        elseif event == "SPELL_RANGE_CHECK_UPDATE" then
+            -- Native range notifications name one spell. Unreadable/non-ID
+            -- payloads retain the guarded full refresh without indexing secrets.
+            UpdateCastability(Access.CanRead(unit) and type(unit) == "number" and unit or nil)
+        elseif event == "SPELL_UPDATE_USABLE" or event == "PLAYER_TARGET_CHANGED" then
             UpdateCastability()
         elseif event == "SPELL_UPDATE_COOLDOWN" or event == "SPELL_UPDATE_CHARGES" then
             Sample(event == "SPELL_UPDATE_COOLDOWN")

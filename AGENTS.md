@@ -14,7 +14,8 @@
 - Preserve historical ApogeeTankEffectsDB only through its TOC declaration; do not read, migrate, clear or write it. Enemy-effect code is removed.
 - Verify working directory, branch, remote and uncommitted changes before edits. Use short-lived feature branches, preserve user changes and keep modifications scoped.
 - Run `pwsh ./scripts/test-local.ps1` for code changes, supplying the Forever export for native integration. Report remaining live checks honestly; mocks cannot establish native visual parity or taint safety.
-- Do not install, publish, release or alter client installations without the owner's authorization. Keep source/third-party license notices intact.
+- Requests to change Tank include local WoW Forever installation after proportionate checks; no separate install prompt is required. Verify the actual Forever destination and source package, preserve SavedVariables and unrecognized files, detect unexpected installed edits before overwriting, and use a verified backup with a rollback path. Do not operate or restart the game. Report source/destination, backup, file verification, required reload and remaining live checks; offline checks never establish in-game acceptance.
+- Publishing, pushing, releases, destructive cleanup and unrelated client/settings changes remain separately authorized actions. Keep source/third-party license notices intact.
 
 - Authorized stance-equivalent guidance: Guidance/ owns Paladin aura, Warrior stance and Druid form reminders only. No seal, blessing, shout, Mark/Gift or Righteous Fury upkeep advice belongs in Tank. Native assigned roles drive policy; explicit NONE defaults to damage. Unreadable roles or auras remain unknown. No manual role settings, casting, cancellation, saved catalogs or combat spellbook polling.
 

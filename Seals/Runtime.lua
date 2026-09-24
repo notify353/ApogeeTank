@@ -6,17 +6,22 @@ function addon.StartSeals(getGeometry)
     end
     local inWorld = true
     local function Paint()
-        local state = inWorld and addon.Access.Call(UnitIsDeadOrGhost, "player") ~= true
+        local state = inWorld and addon.Access.Call(UnitIsDeadOrGhost, "player") == false
             and addon.SealAPI.Active(addon.SealEntries or {}) or nil
         for _, button in ipairs(buttons) do
             local active = state and state.spellId == button.spellId
-            button.image:SetDesaturated(state and state.spellId ~= nil and not active or false)
-            button.image:SetAlpha(state and state.spellId ~= nil and not active and 0.5 or 1)
+            local dimmed = state and state.spellId ~= nil and not active or false
+            if button.lastDimmed ~= dimmed then
+                button.image:SetDesaturated(dimmed)
+                button.image:SetAlpha(dimmed and 0.5 or 1)
+                button.lastDimmed = dimmed
+            end
             local durationObject = active and state.durationObject or nil
             local start = active and state.start or nil
             local duration = active and state.duration or nil
             if button.timerObject ~= durationObject or button.timerStart ~= start
-                or button.timerDuration ~= duration then
+                or button.timerDuration ~= duration
+                or ((durationObject or start) and not button.timerApplied) then
                 button.timerObject, button.timerStart, button.timerDuration = durationObject, start, duration
                 button.timerApplied = false
                 if durationObject then
@@ -74,6 +79,7 @@ function addon.StartSeals(getGeometry)
                 HideTooltip(button)
                 button.spellId = entry and entry.spellId
                 button.image:SetTexture(entry and entry.icon)
+                button.lastDimmed = nil
                 button.timer:Hide()
                 button.timerObject, button.timerStart, button.timerDuration, button.timerApplied = nil, nil, nil, false
                 UnregisterAttributeDriver(button, "type1"); UnregisterAttributeDriver(button, "spell")

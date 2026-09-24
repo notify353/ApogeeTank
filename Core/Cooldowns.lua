@@ -43,16 +43,19 @@ function API.Read(id, fromCooldownEvent)
     if not Access.Fields(info, { "name", "iconID" }) then return nil end
     local cooldown = Access.Call(C_Spell.GetSpellCooldown, id)
     if not Access.Fields(cooldown, { "isEnabled", "isActive", "isOnGCD" }) then return nil end
+    -- The native contract only guarantees this optional flag during its event.
+    local onGCD
+    if fromCooldownEvent then onGCD = cooldown.isOnGCD end
     local ok, charges = Access.Try(C_Spell.GetSpellCharges, id)
     if not ok then return nil end
     if charges and not Access.Fields(charges, { "maxCharges", "isActive" }) then return nil end
     -- Public classification can establish idle/GCD-only state even when
     -- scalar timestamps are restricted. Do not turn a GCD into an unknown timer.
     if (not charges or charges.maxCharges == 0) and cooldown.isEnabled ~= false
-        and (cooldown.isActive == false or cooldown.isOnGCD == true) then
+        and (cooldown.isActive == false or onGCD == true) then
         return { spellId = id, name = info.name, icon = info.iconID,
             enabled = cooldown.isEnabled, start = 0, duration = 0,
-            gcdOnly = cooldown.isOnGCD, coolingDown = false,
+            gcdOnly = onGCD, coolingDown = false,
             castable = API.Castable(id) }
     end
     local timerReadable = Access.Fields(cooldown, { "startTime", "duration", "modRate" })
@@ -73,8 +76,8 @@ function API.Read(id, fromCooldownEvent)
         if charges and charges.maxCharges > 0 then
             state.realCooldown = charges.isActive == true
             if Access.CanRead(charges.currentCharges) then state.charges = charges.currentCharges end
-        elseif fromCooldownEvent and cooldown.isOnGCD ~= nil then
-            state.realCooldown = cooldown.isActive and not cooldown.isOnGCD
+        elseif onGCD ~= nil then
+            state.realCooldown = cooldown.isActive and not onGCD
         end
         -- These opaque objects let the native widget render restricted
         -- timers. Never read their values or persist them as spell data.
@@ -83,11 +86,11 @@ function API.Read(id, fromCooldownEvent)
         else
             state.nativeDuration = Access.Call(C_Spell.GetSpellCooldownDuration, id, true)
         end
-        -- Display classification must survive usability/range refreshes, not
-        -- only cooldown events. Discovery keeps its separate event policy.
-        state.coolingDown = charges and charges.maxCharges > 0
-            and charges.isActive == true
-            or (cooldown.isActive == true and cooldown.isOnGCD == false)
+        if charges and charges.maxCharges > 0 then
+            state.coolingDown = charges.isActive == true
+        elseif onGCD ~= nil then
+            state.coolingDown = cooldown.isActive == true and not onGCD
+        end
         return state
     end
     local state = { spellId = id, name = info.name, icon = info.iconID,
@@ -98,10 +101,10 @@ function API.Read(id, fromCooldownEvent)
         state.start, state.duration = charges.cooldownStartTime, charges.cooldownDuration
         state.rate = charges.chargeModRate or 1
         state.realCooldown = charges.isActive and charges.cooldownDuration > 0
-    elseif cooldown.isOnGCD ~= nil then
-        state.coolingDown = cooldown.isActive and not cooldown.isOnGCD
+    elseif onGCD ~= nil then
+        state.coolingDown = cooldown.isActive and not onGCD
         if fromCooldownEvent then state.realCooldown = state.coolingDown end
-        state.gcdOnly = cooldown.isOnGCD
+        state.gcdOnly = onGCD
     end
     return state
 end

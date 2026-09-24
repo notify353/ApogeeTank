@@ -23,7 +23,7 @@ try {
     $names += @($reviewed.targets.foreverBeta.requiredFiles)
     foreach ($name in $names) { Set-Content -LiteralPath (Join-Path $docs $name) -Value 'fixture' }
     $build = Join-Path $fixtureRoot '.build.info'
-    Set-Content -LiteralPath $build -Value @('Version!STRING:0|Product!STRING:0', '1.60.1.69977|wow_classic_beta')
+    Set-Content -LiteralPath $build -Value @('Version!STRING:0|Product!STRING:0', '1.60.1.70009|wow_classic_beta')
     $metadata = Join-Path $fixtureRoot 'metadata.json'
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../docs/wow-api-export.json') -Destination $metadata
     $toc = Join-Path $fixtureRoot 'test.toc'

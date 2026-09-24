@@ -1,5 +1,146 @@
 # Forever quality sweep — 2026-09-24
 
+## Owner acceptance and integration
+
+After installation of the performance follow-up, the owner reported testing all
+five Apogee addons in game and authorized committing, integrating into main and
+pushing to GitHub. This is user-reported acceptance of the installed candidate.
+It is not an exhaustive per-issue validation record or a measured FPS result;
+the specific historical seal-detection and flicker limitations below are retained.
+The earlier phase reports describe the checks and publication state at that time.
+
+## Performance follow-up
+
+Reviewed remaining event/animation paths against the completed deep review.
+The current 70009 export still passes freshness verification. Its
+`SPELL_RANGE_CHECK_UPDATE` payload identifies the affected spell; broad usability
+and target events still require full castability refreshes.
+
+Two measured, bounded optimizations were justified:
+
+| Scenario | Before | After | Correctness boundary |
+| --- | --- | --- | --- |
+| 100 range notifications for one of six selected cooldowns | 1,200 usability/range API calls | 200 calls | Affected spell updates synchronously. Target/usability changes and unreadable/non-numeric identifiers retain full guarded refreshes. Unwatched IDs do no display work; no timer API reads were added. |
+| 100 unchanged player-aura events with three allocated seal buttons | 600 desaturation/alpha writes | 0 writes | Only the public dimming boolean is cached. Aura access still occurs on events, unknown state clears immediately, identity changes invalidate artwork state, and failed timers retain their recovery path. |
+
+Both assertions failed against the prior implementation before fixes. Tests
+exercise range transitions immediately, unrelated spell preservation, broad
+target invalidation, secret identifiers and zoning. Existing seal regressions
+cover active/unknown/absent transitions, timer failures, identity changes and
+combat geometry guards. The full local suite with the actual 70009 export passes,
+including exported secure-action integration and prior regression coverage.
+
+These are deterministic offline call/write counts, not measured FPS gains.
+No further justified optimization or additional reproducible bug was established
+in this pass. Existing coalesced threat refresh, sleeping idle cooldown drivers,
+cached countdown animation, picker closure and fixed secure geometry were retained.
+Live seal detection, flicker, taint and in-game performance remain unverified.
+
+The validated follow-up was installed from the same `d5ce/ApogeeTank` worktree
+into the verified Forever beta addon directory below. Installed files matched
+the preceding installation manifest; no unexpected edits or extra files existed.
+All 28 files were backed up and verified, two runtime files were copied, and all
+28 installed SHA-256 hashes match the validated source. Latest rollback package:
+`C:/Dev/WoW/Backups/ApogeeTank/forever-performance-70009-20260924-152743-a2f7e1`.
+Use its `installation-manifest.json` file list for rollback, preserving later edits.
+SavedVariables and other addons remain untouched. The game was not operated;
+an out-of-combat `/reload` is required to load this follow-up.
+
+## Deep review after family cleanup
+
+Reviewed every shipped Lua module, TOC/load order, assets, local changes, tests,
+export provenance, and saved-data boundaries on `codex/forever-cleanup`. The
+earlier review below predates this pass and its installed-export result is now
+historical.
+
+| Severity | Reproduced finding | Local correction and regression |
+| --- | --- | --- |
+| P2 | `Core/Cooldowns.lua` trusted `isOnGCD` on login, combat and spellbook refreshes, contrary to the reviewed 69977 contract. Stale true could assert readiness; stale false could classify GCD activity as a real display timer. Two prior assertions required this invalid behavior. | Consume the flag only for `SPELL_UPDATE_COOLDOWN`. Other reads retain native duration delivery and safe unknown handling. `tests/default_cooldowns_spec.lua` now covers readable and opaque stale flags, event-valid GCD exclusion and independent charge classification. |
+| P2 | `Cooldowns/Runtime.lua` let any older-rank opt-out override a newer rank explicitly re-enabled in the picker. The next combat exit silently unchecked it again. | Inherit the newest recorded rank's choice. Regression covers initial opt-out inheritance, explicit recheck, later rank upgrade and current-rank opt-out. No schema change or existing selection deletion. |
+| P3 | `Seals/Runtime.lua` cached failed timer setters as though no retry was needed. The same active aura could never restore its countdown after a transient failure. | Retry a failed application on the next event; unchanged successful timers still avoid resets. Setter-failure/recovery regression and the existing 100-event write-count check pass. |
+| P3 | `Seals/Runtime.lua` treated a failed/unreadable death query as alive and retained active-seal presentation. | Require explicitly readable alive status. Regression clears countdown/dimming on query failure; the fixture now supplies a real alive result instead of silently relying on a missing API. |
+| P3 | `Guidance/Runtime.lua` checked death inside refresh but did not register `PLAYER_DEAD`. A missing-aura warning survived death without another aura event. | Register the existing death event. New runtime regression proves warning removal, revival recovery and zoning suppression. |
+
+Each new failure was observed against the pre-fix path before its correction.
+Seal mocks now also reject protected geometry writes during combat. These checks
+still do not emulate the engine's full taint rules.
+
+Startup remains a small composition point with one Forever TOC, existing packaged
+logo, no addon dependencies, private module state and Tank-prefixed named frames.
+Saved cooldown schemas, opt-outs and copied identities retain their existing
+guards; future schemas remain untouched. The historical effects store is still
+TOC-only. Minimap persistence stays separate. Preview isolation, target clearing,
+event coalescing, cached animation, combat-frozen cooldown identities, native
+target acquisition and combat-reload deferral were inspected. No additional
+actionable defect was confirmed in those paths. Cross-addon coexistence is a
+source-boundary review here, not a multi-addon live-client test.
+
+### Verification after the current export refresh
+
+The owner refreshed the beta code export on 2026-09-24. Independent verification
+confirms installed beta **1.60.1.70009**, interface **16001**. `WowB.exe` is dated
+22:04:15 UTC; reviewed generated contracts are dated 22:12:54 UTC and secure Lua
+22:12:55 UTC. The earlier stale 69977 export blocker is resolved. Provenance was
+recorded only after reviewing the refreshed contracts and passing freshness
+validation. Runtime warning baseline and test fixtures now use 70009. Required
+freshness files now include aura, secrecy-predicate and death-event contracts.
+
+Current `SpellSharedDocumentation.lua` still explicitly limits `isOnGCD` to
+`SPELL_UPDATE_COOLDOWN`; classification flags remain public and charge recharge
+is independently classified. `SpellDocumentation.lua` retains duration objects
+and the `ignoreGCD` argument. The held GCD fix is therefore supported by current
+contracts. `UnitAuraDocumentation.lua` retains aura-access/non-secret identity
+requirements; `SecretPredicateAPIDocumentation.lua` retains the spell-aura secrecy
+predicate. `DeathInfoDocumentation.lua` confirms `PLAYER_DEAD`; native health,
+marker and cooldown rendering contracts retain the reviewed boundaries. No
+additional API-dependent source fix was required. This is a targeted contract
+review against prior recorded evidence, not a byte-for-byte diff of full exports.
+
+Both `pwsh ./scripts/check-wow-api-export.ps1` and the complete
+`pwsh ./scripts/test-local.ps1 -ForeverExportPath <matching AddOns directory>` pass.
+The suite includes Lua 5.1 parsing, all regressions, standalone TOC execution,
+export-checker fixtures and whitespace checks. Native integration was enabled:
+tests load and execute the refreshed Blizzard secure resolver/actions, attribute
+driver resolver and click dispatcher. They cover marker mappings/repeated set,
+the absent-target guard and offensive acquisition path, native macro dispatch,
+aura macro delivery and click timing. Direct spell assignments are covered by
+configuration tests and source review. No Blizzard code is redistributed.
+Engine calls, macro-condition parsing and permissions remain mocked; these are
+current-export Lua integration tests, not an in-game taint or casting test.
+
+Combat seal readability is still unconfirmed and the earlier live report of
+failed detection remains unresolved. No unrestricted aura reader, cast-derived
+timer or guessed identity has been introduced. Neutral clickable seals remain
+the safe fallback.
+
+Remaining live checks: combat reload and taint, marker permissions, helpful and
+offensive targeting with absent/friendly/dead/hostile targets, cooldown and charge
+completion, aura activation and death/revival, seal changes/expiration, flicker,
+and coexistence with the other independently installed Apogee addons. No commit,
+integration, push or release was performed during this review.
+
+### Authorized local installation
+
+The owner's standing workflow now includes local Forever installation after
+checks. On 2026-09-24 the validated package from
+`C:/Users/nickm/.codex/worktrees/d5ce/ApogeeTank` was installed into
+`C:/Program Files (x86)/World of Warcraft/_classic_beta_/Interface/AddOns/ApogeeTank`.
+The actual destination is an ordinary directory, with no linked package paths,
+unexpected edits or unrecognized files. All 28 prior package files were backed up
+and verified before copying seven changed files. SHA-256 verification confirms
+all 28 installed package files match this worktree.
+
+Rollback package:
+`C:/Dev/WoW/Backups/ApogeeTank/forever-quality-70009-20260924-152144-7ea1a5`.
+Its `installation-manifest.json` records source, destination and before/after
+hashes. Restore only the manifest-listed files from that backup to reverse this
+installation; preserve any later edits before doing so. SavedVariables, other
+addons and the client executable were not touched. No game operation or restart
+was performed. An out-of-combat `/reload` is needed to load these files; the live
+checks above remain outstanding.
+
+## Earlier threat-centered review
+
 Audit of the installed threat-centered, Forever-only revision. Existing uncommitted redesign work is preserved; fixes are on the same feature branch.
 
 ## Fixed findings

@@ -111,7 +111,7 @@ function GameTooltip:SetSpellByID(id) self.spellId = id end
 function GameTooltip:AddLine() error("unexpected addon text on standard spell tooltip") end
 function GameTooltip:Show() self.shown = true end
 function GameTooltip:Hide() self.shown = false end
-function GetBuildInfo() return "1.60.1", "69977", "", interface end
+function GetBuildInfo() return "1.60.1", "70009", "", interface end
 function GetTime() return now end
 function UnitAffectingCombat() return combat end
 local classToken = "WARRIOR"
@@ -204,7 +204,7 @@ C_Spell = {
 -- Forever TOC startup and transitions.
 frames, named, driver = {}, {}, nil
 interface, WOW_PROJECT_ID = 16001, 1
-function GetBuildInfo() return "1.60.1", "69977", "", interface end
+function GetBuildInfo() return "1.60.1", "70009", "", interface end
 local secretValue = {}
 function issecretvalue(value) return rawequal(value, secretValue) end
 function canaccessvalue(value) return not issecretvalue(value) end

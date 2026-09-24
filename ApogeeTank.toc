@@ -1,5 +1,6 @@
 ## Interface: 16001
 ## Title: Apogee Tank
+## Author: notify353
 ## IconTexture: Interface\AddOns\ApogeeTank\Media\Textures\ApogeeLogo.png
 ## Notes: Current-target tank threat HUD for WoW Forever.
 ## Version: 0.1.0-dev

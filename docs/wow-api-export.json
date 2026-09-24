@@ -5,7 +5,7 @@
       "product": "wow_classic_beta",
       "clientDirectory": "_classic_beta_",
       "executable": "WowB.exe",
-      "clientVersion": "1.60.1.69977",
+      "clientVersion": "1.60.1.70009",
       "interface": 16001,
       "recordedOn": "2026-09-24",
       "requiredFiles": [
@@ -13,7 +13,10 @@
         "SimpleTextureBaseAPIDocumentation.lua",
         "SpellBookDocumentation.lua",
         "SimpleStatusBarAPIDocumentation.lua",
-        "FrameAPICooldownDocumentation.lua"
+        "FrameAPICooldownDocumentation.lua",
+        "UnitAuraDocumentation.lua",
+        "SecretPredicateAPIDocumentation.lua",
+        "DeathInfoDocumentation.lua"
       ]
     }
   }

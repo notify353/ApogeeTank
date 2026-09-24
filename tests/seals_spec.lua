@@ -4,6 +4,7 @@ assert(loadfile("Threat/Hud.lua"))("test", addon)
 assert(loadfile("Core/Access.lua"))("test", addon)
 InCombatLockdown = function() return combat end
 UnitClass = function() return class, class end
+UnitIsDeadOrGhost = function() return false end
 Enum = { SpellBookSpellBank = { Player = 0 } }
 local names = { [21084] = "Righteousness", [21082] = "Crusader", [1311649] = "Fury" }
 C_Spell = { GetSpellInfo = function(id) return { name = names[id] } end }
@@ -32,9 +33,9 @@ function CreateFrame(kind, name, parent, template)
     local f = { scripts = {}, attributes = {} }
     function f:SetScript(key, value) self.scripts[key] = value end
     function f:RegisterEvent() end
-    function f:SetScale(value) self.scale = value end
-    function f:SetSize(w, h) self.width, self.height = w, h end
-    function f:SetPoint(...) self.point = {...} end
+    function f:SetScale(value) assert(not name or not combat); self.scale = value end
+    function f:SetSize(w, h) assert(not name or not combat); self.width, self.height = w, h end
+    function f:SetPoint(...) assert(not name or not combat); self.point = {...} end
     function f:SetAllPoints() end
     function f:EnableMouse() end
     function f:SetDrawSwipe() end
@@ -64,7 +65,10 @@ function RegisterAttributeDriver(button, key, text)
     button:SetAttribute(key, value)
 end
 function RegisterStateDriver(button, _, value) assert(not combat); button.visibility = value end
-addon.Style = { Icon = function() return { SetTexture = function(self, value) self.texture = value end, SetDesaturated = function(self, value) self.gray = value end, SetAlpha = function(self, value) self.alpha = value end } end }
+local artworkWrites = 0
+addon.Style = { Icon = function() return { SetTexture = function(self, value) self.texture = value end,
+    SetDesaturated = function(self, value) artworkWrites = artworkWrites + 1; self.gray = value end,
+    SetAlpha = function(self, value) artworkWrites = artworkWrites + 1; self.alpha = value end } end }
 GameTooltip = {
     IsOwned = function(self, owner) return self.owner == owner end,
     SetOwner = function(self, owner) self.owner = owner end,
@@ -104,9 +108,21 @@ combat = true
 driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
 assert(first.timer.shown and first.timer.start == 100 and first.timer.duration == 30)
 assert(first.image.gray == false and named.ApogeeTankSealAction2.image.gray == true)
+local setTimer = first.timer.SetCooldown
+first.timer.SetCooldown = function() error("temporarily unavailable timer") end
+aura.expirationTime = 140
+driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
+assert(not first.timer.shown, "failed native timer remained visible")
+first.timer.SetCooldown = setTimer
+driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
+assert(first.timer.shown and first.timer.start == 110,
+    "same seal state did not recover after transient timer failure")
 local writes = first.timer.timerWrites
+local beforeArtwork = artworkWrites
 for i = 1, 100 do driver.scripts.OnEvent(driver, "UNIT_AURA", "player") end
 assert(first.timer.timerWrites == writes, "unrelated aura updates restarted seal timer")
+print("100 unchanged aura events: " .. (artworkWrites - beforeArtwork) .. " seal artwork writes")
+assert(artworkWrites == beforeArtwork, "unchanged aura events rewrote identical seal artwork state")
 local object = {}
 aura.duration, aura.expirationTime = secret, secret
 C_UnitAuras.GetAuraDuration = function() return object end
@@ -125,3 +141,14 @@ assert(not first.timer.shown)
 driver.scripts.OnEvent(driver, "PLAYER_LEAVING_WORLD")
 assert(not first.timer.shown)
 print("Seal native/numeric countdown, restricted-state clearing, expiration and no combat protected writes passed")
+
+driver.scripts.OnEvent(driver, "PLAYER_ENTERING_WORLD")
+aura = { spellId = 21084, auraInstanceID = 55, duration = 30, expirationTime = 150 }
+UnitIsDeadOrGhost = function() return false end
+driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
+assert(first.timer.shown)
+UnitIsDeadOrGhost = function() error("death status unavailable") end
+driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
+assert(not first.timer.shown and not named.ApogeeTankSealAction2.image.gray,
+    "unknown death status was treated as alive")
+print("Seal timers recover after setter failure and clear when eligibility is unknown")

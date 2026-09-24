@@ -2,13 +2,13 @@
 
 ## Threat-centered HUD (2026-09-24)
 
-Reviewed local export: **1.60.1.69977**, project 1, interface 16001. Forever is the
+Reviewed local export: **1.60.1.70009**, project 1, interface 16001. Forever is the
 only supported runtime; Classic Era code and export target have been removed.
 
 - Player health/power bars have been removed. The fixed stance/form/aura slot and
   six selected cooldowns plus overflow remain visible in and out of combat.
 - The living hostile current-target meter retains its previous screen coordinates
-  and 2x scale. It retains enemy health/casts, with the name beneath and a reserved
+  and 2x scale. It retains enemy health/casts, no mob-name label, and a reserved
   raid-marker slot on the right. There are no secondary enemy rows on Forever.
 - Left skull, right X, Shift-left moon work through native secure actions in and
   out of combat. The protected target button has only UIParent relationships;
@@ -40,8 +40,10 @@ older confirmations are not acceptance of this geometry or picker.
 
 ## Installation and rollback
 
-No installation, junction, release, or character data is changed by source work.
-Inspect the actual client addon directories before deployment rather than relying
-on old checkout/junction descriptions. Preserve installed source with a separate
-backup before an approved replacement. Existing historical backups remain
-untouched. No automatic reload is performed.
+Requested Tank changes include local Forever installation after checks, without
+a separate install prompt. Inspect the actual client addon directory and compare
+installed files with known source before replacement. Stop conflicting overwrites,
+preserve unrecognized files and character data, and verify a separate backup and
+installed file hashes. Existing historical backups remain untouched. Do not
+operate or restart the game; report the required reload and live acceptance.
+Publishing and releases remain separately authorized.
