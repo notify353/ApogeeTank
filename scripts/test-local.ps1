@@ -9,13 +9,13 @@ try {
     $version = (& lua -v 2>&1 | Out-String)
     if ($version -notmatch 'Lua 5\.1\.') { throw 'Lua 5.1 is required.' }
     $toc = Get-Content -LiteralPath 'ApogeeTank.toc'
-    if ($toc -notcontains '## Interface: 11509, 16001') { throw 'Expected verified Era and beta interfaces.' }
+    if ($toc -notcontains '## Interface: 16001') { throw 'Expected verified Forever interface.' }
     if ($toc -match '^## (SavedVariables:|Dependencies|RequiredDeps|OptionalDeps)') {
         throw 'No account-wide settings or other addon dependencies are allowed.'
     }
     if (@($toc | Where-Object { $_ -match '^## SavedVariablesPerCharacter:' }).Count -ne 1 -or
-        $toc -notcontains '## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB') {
-        throw 'Only the character effect and cooldown watch lists may be persisted.'
+        $toc -notcontains '## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB, ApogeeTankUIDB') {
+        throw 'Only character watch lists and minimap placement may be persisted.'
     }
     foreach ($line in $toc) {
         if ($line -match '^[^#].*\.lua$' -and -not (Test-Path -LiteralPath $line)) {
@@ -43,4 +43,7 @@ try {
     }
     Write-Host 'All Apogee Tank local checks passed.'
 }
-finally { $env:APOGEE_FOREVER_EXPORT = $previousExport; Pop-Location }
+finally {
+    $env:APOGEE_FOREVER_EXPORT = $previousExport
+    Pop-Location
+}

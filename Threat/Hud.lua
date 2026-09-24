@@ -4,46 +4,28 @@ local A = {}
 addon.ThreatHud = A
 local Style = addon.Style
 
-local ROW_INSET, NAME_LEFT, NAME_WIDTH = 5, 10, 135
+local ROW_INSET = 5
 local CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT, CONTROL_RIGHT = 112, 16, 7
 local STATUS_BAR_HEIGHT = 5
-local MARKER_WIDTH, MARKER_GAP, CENTER_GAP = 14, 5, 96
-local WIDTH = ROW_INSET * 2 + NAME_LEFT + NAME_WIDTH + CENTER_GAP
-    + MARKER_WIDTH + MARKER_GAP + CONTROL_BAR_WIDTH + CONTROL_RIGHT
-local ROW_HEIGHT, FOOTER_HEIGHT = 24, 18
+-- Keep the original target meter screen position after removing the old layout.
+local MARKER_WIDTH, WIDTH = Style.iconSize, 389
+local ROW_HEIGHT = 24
 local FIXED_ANCHOR_Y = 55
-local PLAYER_HEALTH_HEIGHT, PLAYER_POWER_HEIGHT = 12, 5
-local PLAYER_BAR_GAP, PLAYER_SECTION_GAP = 2, 5
-local PLAYER_STATUS_HEIGHT = PLAYER_HEALTH_HEIGHT + PLAYER_BAR_GAP + PLAYER_POWER_HEIGHT
-local PLAYER_SECTION_HEIGHT = PLAYER_STATUS_HEIGHT + PLAYER_SECTION_GAP
-local QUEUE_LIMIT = 10
-local DEBUFF_ICON_SIZE, DEBUFF_ICON_GAP = Style.iconSize, Style.iconGap
-local DEBUFF_LIMIT = 6
-local ROW_GAP = 1
+-- Preserve the existing target hit area; spells occupy the space above it.
+local SPELL_SECTION_HEIGHT = 24
 local COLORS = {
     unknown = { 0.5, 0.5, 0.5 },
-    safe = { 0.25, 0.85, 0.35 }, slipping = { 1.00, 0.82, 0.15 },
+    safe = Style.heldThreatColor, slipping = { 1.00, 0.82, 0.15 },
     critical = { 1.00, 0.35, 0.08 }, lost = { 1.00, 0.10, 0.10 },
 }
-local TARGET_COLOR = { 0.38, 0.72, 0.92, 0.95 }
 local CAST_COLOR = { 1.00, 0.68, 0.12 }
 local PROTECTED_CAST_COLOR = { 0.58, 0.58, 0.62 }
-local D, frame, overflowLabel, playerStatusAnchor, playerHealthFill, playerPowerFill
-local playerHealthBar, playerPowerBar
-local nativeHealth, nativePower, healthCurve
+local D, frame, stanceAnchor, cooldownAnchor, guidanceAnchor
 local rows = {}
-local queueSlots = {}
-local observing = false
-local rowsChanged
-local playerClickHandler
-
-local function EnemyRowTop(index)
-    return -(PLAYER_SECTION_HEIGHT + (index - 1) * (ROW_HEIGHT + ROW_GAP))
-end
 
 local markerButton, markerSetupDriver
 local function InitializeMarkerButton()
-    if addon.Client ~= "foreverBeta" or markerButton then return end
+    if markerButton then return end
     if InCombatLockdown() then
         if not markerSetupDriver then
             markerSetupDriver = CreateFrame("Frame")
@@ -53,7 +35,7 @@ local function InitializeMarkerButton()
         return
     end
     local scale = Style.GetScale()
-    -- Independent of the dynamically resized HUD: protected parent/anchor
+    -- Independent of the HUD: protected parent/anchor
     -- relationships must not prevent ordinary HUD updates during combat.
     local button = CreateFrame("Button", "ApogeeTankTargetMarkerButton", UIParent,
         "SecureActionButtonTemplate")
@@ -61,7 +43,7 @@ local function InitializeMarkerButton()
     button:SetSize(CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT)
     button:SetPoint("TOPRIGHT", UIParent, "CENTER",
         WIDTH / 2 - ROW_INSET - CONTROL_RIGHT,
-        FIXED_ANCHOR_Y / scale + EnemyRowTop(1) - 1)
+        FIXED_ANCHOR_Y / scale + (-SPELL_SECTION_HEIGHT) - 1)
     button:SetFrameStrata("MEDIUM")
     button:SetFrameLevel(1)
     -- This native-visible meter remains an honest marking affordance even
@@ -95,7 +77,7 @@ local function InitializeMarkerButton()
     button:Hide()
     RegisterStateDriver(button, "visibility", "[@target,harm,nodead] show; hide")
     markerButton = button
-    for _, row in ipairs(rows) do row.controlBg:Hide(); row.zeroLine:Hide() end
+    if rows[1] then rows[1].controlBg:Hide(); rows[1].zeroLine:Hide() end
     if markerSetupDriver then markerSetupDriver:UnregisterEvent("PLAYER_REGEN_ENABLED") end
 end
 
@@ -108,7 +90,7 @@ local function NativeBar(parent)
 end
 
 local function SetHealthyHealthColor(texture)
-    texture:SetColorTexture(D.UnitBar.GetHealthColor(1))
+    texture:SetColorTexture(unpack(Style.enemyHealthColor))
 end
 
 
@@ -116,46 +98,22 @@ local function Clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
 end
 
-local function EmptySnapshot(limitedCoverage)
-    return {
-        enemies = {},
-        counts = { safe = 0, slipping = 0, critical = 0, lost = 0 },
-        total = 0,
-        limitedCoverage = limitedCoverage == true,
-    }
-end
-
 local function CreateRow(index)
     local row = CreateFrame("Frame", nil, frame)
     row:SetPoint("TOPLEFT", frame, "TOPLEFT", ROW_INSET,
-        EnemyRowTop(index))
+        (-SPELL_SECTION_HEIGHT))
     row:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -ROW_INSET,
-        EnemyRowTop(index))
+        (-SPELL_SECTION_HEIGHT))
     row:SetHeight(ROW_HEIGHT)
-
-    local rail = row:CreateTexture(nil, "ARTWORK")
-    rail:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
-    rail:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 0, 0)
-    rail:SetWidth(3)
-    rail:SetShown(addon.Client ~= "foreverBeta")
+    row:EnableMouse(false)
 
     local marker = row:CreateTexture(nil, "ARTWORK")
     marker:SetSize(MARKER_WIDTH, MARKER_WIDTH)
 
-    local name = Style.Text(row)
-    if addon.Client ~= "foreverBeta" then
-        name:SetPoint("LEFT", row, "LEFT", NAME_LEFT, 0)
-    end
-    name:SetWidth(NAME_WIDTH)
-    name:SetJustifyH(addon.Client == "foreverBeta" and "CENTER" or "LEFT")
-    name:SetWordWrap(false)
-
     local statusBar = CreateFrame("Frame", nil, row)
     statusBar:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -CONTROL_RIGHT, 1)
     statusBar:SetSize(CONTROL_BAR_WIDTH, STATUS_BAR_HEIGHT)
-    if addon.Client == "foreverBeta" then
-        name:SetPoint("TOP", statusBar, "BOTTOM", 0, -2)
-    end
+    statusBar:EnableMouse(false)
     local statusBackground = statusBar:CreateTexture(nil, "BACKGROUND")
     statusBackground:SetAllPoints()
     statusBackground:SetColorTexture(unpack(Style.slotColor))
@@ -168,128 +126,29 @@ local function CreateRow(index)
     local controlBar = CreateFrame("Frame", nil, row)
     controlBar:SetPoint("TOPRIGHT", row, "TOPRIGHT", -CONTROL_RIGHT, -1)
     controlBar:SetSize(CONTROL_BAR_WIDTH, CONTROL_BAR_HEIGHT)
-    -- Preserve the accessory gutter; markers and auras stay outside the meter.
-    if addon.Client == "foreverBeta" then
-        marker:SetPoint("RIGHT", controlBar, "LEFT", -DEBUFF_ICON_GAP, 0)
-    else
-        marker:SetPoint("LEFT", row, "RIGHT", DEBUFF_ICON_GAP, 0)
-    end
+    controlBar:EnableMouse(false)
+    -- Preserve the accessory gutter; the marker stay outside the meter.
+    marker:SetPoint("LEFT", controlBar, "RIGHT", Style.iconGap, -(Style.iconSize - CONTROL_BAR_HEIGHT) / 2)
 
     local controlBg = controlBar:CreateTexture(nil, "BACKGROUND")
     controlBg:SetAllPoints(); controlBg:SetColorTexture(unpack(Style.headerColor))
-    controlBg:SetShown(addon.Client ~= "foreverBeta" or not markerButton)
+    controlBg:SetShown(not markerButton)
     local controlFill = controlBar:CreateTexture(nil, "ARTWORK")
     controlFill:SetWidth(0)
     local zeroLine = controlBar:CreateTexture(nil, "OVERLAY")
     zeroLine:SetPoint("TOP", controlBar, "TOP", 0, -1)
     zeroLine:SetPoint("BOTTOM", controlBar, "BOTTOM", 0, 1)
     zeroLine:SetWidth(1); zeroLine:SetColorTexture(0.72, 0.72, 0.76, 0.9)
-    zeroLine:SetShown(addon.Client ~= "foreverBeta" or not markerButton)
-    -- Original Health Bars rail: full row height with a deliberate 4px gap
-    -- from the meters. Keep it outside child frames so they cannot obscure it.
-    local targetIndicator = row:CreateTexture(nil, "OVERLAY")
-    targetIndicator:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, 0)
-    targetIndicator:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, 0)
-    targetIndicator:SetWidth(3)
-    targetIndicator:SetColorTexture(unpack(TARGET_COLOR))
-
-    local debuffIcons = {}
-    for slot = 1, (addon.Client == "foreverBeta" and 0 or DEBUFF_LIMIT) do
-        local holder = CreateFrame("Frame", nil, row)
-        holder:SetSize(DEBUFF_ICON_SIZE, DEBUFF_ICON_SIZE)
-        if slot == 1 then
-            holder:SetPoint("LEFT", marker, "RIGHT", DEBUFF_ICON_GAP, 0)
-        else
-            holder:SetPoint("LEFT", debuffIcons[slot - 1], "RIGHT", DEBUFF_ICON_GAP, 0)
-        end
-        local icon = Style.Icon(holder)
-        local count = Style.Text(holder, 11, "OUTLINE")
-        count:SetPoint("CENTER", holder, "CENTER", 0, 0)
-        count:SetJustifyH("CENTER")
-        holder.icon, holder.count = icon, count
-        holder:Hide()
-        debuffIcons[slot] = holder
-    end
-    local debuffOverflow
-    if addon.Client ~= "foreverBeta" then
-        debuffOverflow = Style.Text(row, 10)
-        debuffOverflow:SetPoint("LEFT", debuffIcons[DEBUFF_LIMIT], "RIGHT", 3, 0)
-        debuffOverflow:Hide()
-    end
-
-    row.rail = rail
-    row.marker, row.name = marker, name
+    zeroLine:SetShown(not markerButton)
+    row.marker = marker
     row.statusBar, row.statusFill = statusBar, statusFill
-    if addon.Client == "foreverBeta" then
-        row.nativeHealth = NativeBar(statusBar)
-        row.nativeHealth:SetStatusBarColor(D.UnitBar.GetHealthColor(1))
-    end
+    row.nativeHealth = NativeBar(statusBar)
+    row.nativeHealth:SetStatusBarColor(unpack(Style.enemyHealthColor))
     row.controlBar, row.controlFill = controlBar, controlFill
     row.controlBg = controlBg
     row.zeroLine = zeroLine
-    row.targetIndicator = targetIndicator
-    row.debuffIcons, row.debuffOverflow = debuffIcons, debuffOverflow
     rows[index] = row
     return row
-end
-
-function A.GetPlayerStatusDisplay(health, healthMaximum, healthValid, channels)
-    local healthProgress
-    healthMaximum = tonumber(healthMaximum)
-    if healthValid == true and healthMaximum and healthMaximum > 0 then
-        healthProgress = Clamp((tonumber(health) or 0) / healthMaximum, 0, 1)
-    end
-    channels = channels or {}
-    local channel = channels[#channels]
-    local powerMaximum = tonumber(channel and channel.maximum)
-    local powerProgress
-    if powerMaximum and powerMaximum > 0 then
-        powerProgress = Clamp((tonumber(channel.value) or 0) / powerMaximum, 0, 1)
-    end
-    return healthProgress, powerProgress, channel
-end
-
-local function RenderPlayerStatus()
-    if not playerHealthBar then return end
-    if nativeHealth then
-        nativeHealth:SetShown(D.UnitAPI.PaintNativeHealth(nativeHealth, "player", healthCurve))
-        -- The existing health background is also the picker hit target. Keep
-        -- it available when an optional color or transient health read fails.
-        playerHealthBar:Show()
-        playerPowerBar:SetShown(D.UnitAPI.PaintNativePower(nativePower, "player"))
-        return
-    end
-    local health, healthMaximum, healthValid
-    local channels
-    health, healthMaximum, healthValid = D.UnitAPI.GetHealth("player")
-    channels = D.UnitAPI.GetPowerChannels("player")
-    local healthProgress, powerProgress, channel = A.GetPlayerStatusDisplay(
-        health, healthMaximum, healthValid, channels)
-    playerHealthFill:SetWidth(CONTROL_BAR_WIDTH * (healthProgress or 0))
-    playerHealthFill:SetColorTexture(D.UnitBar.GetHealthColor(healthProgress))
-    playerHealthBar:SetShown(healthProgress ~= nil)
-    playerPowerFill:SetWidth(CONTROL_BAR_WIDTH * (powerProgress or 0))
-    if channel and D.UnitAPI.GetPowerColor then
-        playerPowerFill:SetColorTexture(D.UnitAPI.GetPowerColor(
-            channel.powerType, channel.powerToken))
-    end
-    playerPowerBar:SetShown(powerProgress ~= nil)
-end
-
-function A.IsCurrentTarget(enemy, currentTargetGuid)
-    return enemy ~= nil and (enemy.isCurrentTarget == true
-        or (currentTargetGuid ~= nil and enemy.guid == currentTargetGuid))
-end
-
-function A.GetEnemyName(enemy)
-    return tostring(enemy and enemy.name or "Enemy")
-end
-
-function A.GetRaidMarkerTexCoords(index)
-    index = Clamp(tonumber(index) or 1, 1, 8)
-    local column = (index - 1) % 4
-    local line = math.floor((index - 1) / 4)
-    return column * 0.25, (column + 1) * 0.25, line * 0.5, (line + 1) * 0.5
 end
 
 function A.GetControlDisplay(enemy)
@@ -308,14 +167,6 @@ function A.GetSmoothedControlWidth(current, target, elapsed)
     if not current or math.abs(target - current) <= 0.1 then return target end
     local blend = Clamp((tonumber(elapsed) or 0) * 24, 0, 1)
     return current + (target - current) * blend
-end
-
-function A.GetHealthDisplay(enemy)
-    if not enemy or enemy.live == false or enemy.healthValid ~= true then return nil end
-    local maximum = tonumber(enemy.healthMaximum)
-    if not maximum or maximum <= 0 then return nil end
-    local value = Clamp(tonumber(enemy.health) or 0, 0, maximum)
-    return value / maximum
 end
 
 local function GetCastProgress(enemy, now)
@@ -349,45 +200,19 @@ function A.GetCastDisplay(enemy, now)
 end
 
 
-function A.GetDebuffDisplay(enemy)
-    if not enemy or enemy.live == false then return {}, 0 end
-    return enemy.playerDebuffSlots or {},
-        math.max(0, tonumber(enemy.playerDebuffOverflow) or 0)
-end
-
-function A.GetDebuffAlpha(aura, now)
-    local expirationTime = tonumber(aura and aura.expirationTime) or 0
-    now = tonumber(now) or 0
-    local remaining = expirationTime - now
-    if expirationTime <= 0 or remaining > 5 then return 1 end
-    if remaining <= 0 then return 0 end
-    local phase = (now * 2) % 1
-    local triangle = math.abs(phase * 2 - 1)
-    return 0.3 + 0.7 * triangle
-end
-
 local function RenderStatusBar(row, enemy, now)
     local castProgress, notInterruptible = GetCastProgress(enemy, now)
-    if row.nativeHealth then
-        local native = castProgress == nil and enemy.unit ~= nil and enemy.live ~= false
-        row.nativeHealth:SetShown(native)
-        if native then
-            row.statusFill:Hide()
-            row.statusBar:SetShown(D.UnitAPI.PaintNativeHealth(row.nativeHealth, enemy.unit))
-            return false
-        end
-        row.statusFill:Show()
+    row.nativeHealth:SetShown(castProgress == nil)
+    if castProgress == nil then
+        row.statusFill:Hide()
+        row.statusBar:SetShown(D.UnitAPI.PaintNativeHealth(row.nativeHealth, "target"))
+        return false
     end
-    local progress = castProgress or A.GetHealthDisplay(enemy)
-    row.statusBar:SetShown(progress ~= nil)
-    if progress == nil then return false end
-    row.statusFill:SetWidth(CONTROL_BAR_WIDTH * progress)
-    if castProgress ~= nil then
-        local color = notInterruptible and PROTECTED_CAST_COLOR or CAST_COLOR
-        row.statusFill:SetColorTexture(color[1], color[2], color[3], 1)
-    else
-        SetHealthyHealthColor(row.statusFill)
-    end
+    row.statusBar:Show()
+    row.statusFill:Show()
+    row.statusFill:SetWidth(CONTROL_BAR_WIDTH * castProgress)
+    local color = notInterruptible and PROTECTED_CAST_COLOR or CAST_COLOR
+    row.statusFill:SetColorTexture(color[1], color[2], color[3], 1)
     return castProgress ~= nil
 end
 
@@ -418,41 +243,15 @@ local function HideRow(row)
     row:Hide()
 end
 
-local function RenderRow(row, enemy, currentTargetGuid, now)
+local function RenderRow(row, enemy, now)
     if not row.enemy or row.enemy.guid ~= enemy.guid then ResetControlState(row) end
     row.enemy = enemy
-    local color = COLORS[enemy.severity] or COLORS.safe
-    local isCurrentTarget = A.IsCurrentTarget(enemy, currentTargetGuid)
-    row.targetIndicator:SetShown(addon.Client ~= "foreverBeta" and isCurrentTarget)
-    row.rail:SetColorTexture(color[1], color[2], color[3], 1)
-    if addon.Client == "foreverBeta" then
-        row.marker:SetShown(enemy.live ~= false and enemy.unit ~= nil
-            and D.UnitAPI.PaintNativeRaidMarker(row.marker, enemy.unit))
-    elseif enemy.raidMarker then
-        row.marker:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
-        if SetRaidTargetIconTexture then
-            SetRaidTargetIconTexture(row.marker, enemy.raidMarker)
-        else
-            row.marker:SetTexCoord(A.GetRaidMarkerTexCoords(enemy.raidMarker))
-        end
-        row.marker:Show()
-    else
-        row.marker:Hide()
-    end
-    local name = A.GetEnemyName(enemy)
-    local suffix = enemy.stale and "  |cff77777f> last seen|r" or ""
-    local nameText = name .. suffix
-    if row.nameText ~= nameText then row.name:SetText(nameText); row.nameText = nameText end
-    if isCurrentTarget then
-        row.name:SetTextColor(0.92, 0.97, 1.00)
-    else
-        row.name:SetTextColor(color[1], color[2], color[3])
-    end
-
+    local color = COLORS[enemy.severity] or COLORS.unknown
+    row.marker:SetShown(D.UnitAPI.PaintNativeRaidMarker(row.marker, "target"))
     RenderStatusBar(row, enemy, now)
 
     local display = A.GetControlDisplay(enemy)
-    row.controlBar:SetShown(display ~= nil or addon.Client == "foreverBeta")
+    row.controlBar:Show()
     if display then
         if row.controlDirection ~= display.direction then
             SetControlDirection(row, display.direction)
@@ -466,168 +265,16 @@ local function RenderRow(row, enemy, currentTargetGuid, now)
     else
         ResetControlState(row)
     end
-    local debuffs, overflow = A.GetDebuffDisplay(enemy)
-    for index, holder in ipairs(row.debuffIcons) do
-        local aura = debuffs[index]
-        if aura then
-            holder.icon:SetTexture(aura.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-            local applications = tonumber(aura.applications) or 0
-            holder.count:SetText(applications > 1 and tostring(applications) or "")
-            holder:SetAlpha(A.GetDebuffAlpha(aura, now))
-            holder:Show()
-        else
-            holder:Hide()
-        end
-    end
-    if row.debuffOverflow then
-        row.debuffOverflow:SetText(overflow > 0 and ("+" .. overflow) or "")
-        row.debuffOverflow:SetShown(overflow > 0)
-    end
     row:Show()
 end
 
 
-local function FindCandidate(enemies, occupiedGuids, predicate)
-    for _, enemy in ipairs(enemies) do
-        if enemy.guid and not occupiedGuids[enemy.guid]
-            and (not predicate or predicate(enemy)) then
-            return enemy
-        end
-    end
-    return nil
-end
-
-local function AssignSlot(slots, occupiedGuids, index, enemy)
-    local previousGuid = slots[index]
-    if previousGuid then occupiedGuids[previousGuid] = nil end
-    slots[index] = enemy.guid
-    occupiedGuids[enemy.guid] = true
-end
-
-local function FindReplacementSlot(slots, byGuid)
-    for index = 1, QUEUE_LIMIT do
-        local enemy = slots[index] and byGuid[slots[index]] or nil
-        if enemy and enemy.live == false then return index end
-    end
-
-    local replacementIndex, safestControl
-    for index = 1, QUEUE_LIMIT do
-        local enemy = slots[index] and byGuid[slots[index]] or nil
-        if enemy and enemy.isTanking == true and type(enemy.control) == "number"
-            and (safestControl == nil or enemy.control > safestControl) then
-            replacementIndex, safestControl = index, enemy.control
-        end
-    end
-    return replacementIndex
-end
-
-function A.ReconcileQueue(snapshot, previousSlots)
-    snapshot = snapshot or { enemies = {}, total = 0 }
-    previousSlots = previousSlots or {}
-    local enemies = snapshot.enemies or {}
-    local byGuid, occupiedGuids = {}, {}
-    for _, enemy in ipairs(enemies) do
-        if enemy.guid then byGuid[enemy.guid] = enemy end
-    end
-
-    local slots = {}
-    for index = 1, QUEUE_LIMIT do
-        local guid = previousSlots[index]
-        if guid and byGuid[guid] then
-            slots[index] = guid
-            occupiedGuids[guid] = true
-        end
-    end
-
-    for index = 1, QUEUE_LIMIT do
-        if not slots[index] then
-            local candidate = FindCandidate(enemies, occupiedGuids, function(enemy)
-                return enemy.live ~= false
-            end) or FindCandidate(enemies, occupiedGuids)
-            if candidate then AssignSlot(slots, occupiedGuids, index, candidate) end
-        end
-    end
-
-    while true do
-        local hiddenLost = FindCandidate(enemies, occupiedGuids, function(enemy)
-            return enemy.severity == "lost" and enemy.live ~= false
-        end)
-        if not hiddenLost then break end
-        local replacementIndex = FindReplacementSlot(slots, byGuid)
-        if not replacementIndex then break end
-        AssignSlot(slots, occupiedGuids, replacementIndex, hiddenLost)
-    end
-
-    local presentation = { enemies = {}, slotGuids = slots, overflow = 0, visible = 0 }
-    for index = 1, QUEUE_LIMIT do
-        local enemy = slots[index] and byGuid[slots[index]] or nil
-        presentation.enemies[index] = enemy
-        if enemy then presentation.visible = presentation.visible + 1 end
-    end
-    presentation.overflow = math.max(0, (snapshot.total or #enemies) - presentation.visible)
-    return presentation
-end
-
-function A.GetFooterText(_, presentation)
-    local overflow = tonumber(presentation and presentation.overflow) or 0
-    return overflow > 0 and ("+" .. overflow .. " MORE") or ""
-end
-
-local function Render(snapshot, presentation)
+local function Render(snapshot)
     if not frame then return end
-    snapshot = snapshot or { enemies = {}, total = 0, limitedCoverage = true }
-    presentation = presentation or A.ReconcileQueue(snapshot, {})
-    local footerText = A.GetFooterText(snapshot, presentation)
-    if A.footerText ~= footerText then overflowLabel:SetText(footerText); A.footerText = footerText end
-    RenderPlayerStatus()
-    local currentTargetGuid = D.UnitAPI.GetGUID("target")
-    local now
-    local highestSlot = 0
-    for index = 1, QUEUE_LIMIT do
-        local enemy = presentation.enemies[index]
-        if enemy then
-            now = now or D.Now()
-            RenderRow(rows[index] or CreateRow(index), enemy, currentTargetGuid, now)
-            highestSlot = index
-        elseif rows[index] then
-            HideRow(rows[index])
-        end
-    end
-    local displayedRows = highestSlot
-    local hasFooter = footerText ~= ""
-    local height = PLAYER_SECTION_HEIGHT + displayedRows * (ROW_HEIGHT + ROW_GAP)
-        + (hasFooter and FOOTER_HEIGHT or 5)
-    if addon.Client == "foreverBeta" and displayedRows > 0 then height = height + 14 end
-    frame:SetSize(WIDTH, height)
+    local enemy = snapshot.currentTarget
+    if enemy then RenderRow(rows[1], enemy, D.Now())
+    else HideRow(rows[1]) end
     frame:Show()
-    if rowsChanged then rowsChanged() end
-end
-
--- Public accessory contract: consumers receive row anchors and complete owned
--- aura snapshots, without reading the HUD's internal slot or marker layout.
-function A.GetEnemyRows()
-    local result = {}
-    if not frame or not frame:IsShown() then return result end
-    for _, row in ipairs(rows) do
-        if row:IsShown() and row.enemy then
-            result[#result + 1] = {
-                anchor = row, missingAnchor = row.controlBar, guid = row.enemy.guid, live = row.enemy.live ~= false,
-                playerAuras = row.enemy.playerAuras, demoMissing = row.enemy.demoMissing,
-            }
-        end
-    end
-    return result
-end
-
-function A.SetRowsChangedHandler(handler)
-    rowsChanged = handler
-end
-
-function A.SetPlayerClickHandler(handler)
-    if playerClickHandler == handler then return end
-    playerClickHandler = handler
-    if playerHealthBar then playerHealthBar:EnableMouse(handler ~= nil) end
-
 end
 
 function A.Tick(elapsed)
@@ -648,27 +295,10 @@ function A.Tick(elapsed)
     end
 end
 
-local demoSnapshot
-function A.SetDemoSnapshot(snapshot)
-    demoSnapshot = snapshot
-    A.Refresh()
-end
-
 function A.Refresh()
     A.Build()
-    local snapshot
-    if not D.IsInCombat() and addon.Client ~= "foreverBeta" then
-        if observing then D.Observer.ResetHistory(); observing = false end
-        queueSlots = {}
-        snapshot = demoSnapshot or EmptySnapshot(false)
-    else
-        snapshot = D.Observer.Refresh()
-        observing = true
-        if snapshot.total == 0 then queueSlots = {} end
-    end
-    local presentation = A.ReconcileQueue(snapshot, queueSlots)
-    queueSlots = presentation.slotGuids
-    Render(snapshot, presentation)
+    local snapshot = D.Observer.Refresh()
+    Render(snapshot)
     return snapshot
 end
 
@@ -680,77 +310,61 @@ function A.Build()
     frame = CreateFrame("Frame", "ApogeeTankThreatHud", UIParent, "BackdropTemplate")
     local scale = Style.GetScale()
     frame:SetScale(scale)
-    frame:SetSize(WIDTH, ROW_HEIGHT + FOOTER_HEIGHT)
-    -- Anchor the top edge, which owns the player-status cluster. Enemy rows and
-    -- the footer may change the frame's height, but they can now only expand
-    -- downward and cannot move health, power, reminders, or cooldowns.
+    frame:SetSize(WIDTH, SPELL_SECTION_HEIGHT + ROW_HEIGHT + 5)
+    -- The fixed top edge keeps spells and the protected target hit area stable.
     frame:SetPoint("TOP", UIParent, "CENTER", 0, FIXED_ANCHOR_Y / scale)
     frame:SetMovable(false); frame:EnableMouse(false); frame:SetFrameStrata("MEDIUM")
-    if addon.Client == "foreverBeta" then frame:SetFrameLevel(10) end
-    playerStatusAnchor = CreateFrame("Frame", nil, frame)
-    playerStatusAnchor:SetPoint("TOPRIGHT", frame, "TOPRIGHT",
-        -(ROW_INSET + CONTROL_RIGHT), 0)
-    playerStatusAnchor:SetSize(CONTROL_BAR_WIDTH, PLAYER_STATUS_HEIGHT)
-
-    playerHealthBar = CreateFrame("Frame", nil, playerStatusAnchor)
-    playerHealthBar:SetPoint("TOPLEFT", playerStatusAnchor, "TOPLEFT", 0, 0)
-    playerHealthBar:SetSize(CONTROL_BAR_WIDTH, PLAYER_HEALTH_HEIGHT)
-    playerHealthBar:EnableMouse(playerClickHandler ~= nil)
-    playerHealthBar:SetScript("OnMouseUp", function(_, button)
-        if playerClickHandler then playerClickHandler(button) end
-    end)
-    local playerHealthBackground = playerHealthBar:CreateTexture(nil, "BACKGROUND")
-    playerHealthBackground:SetAllPoints()
-    playerHealthBackground:SetColorTexture(unpack(Style.slotColor))
-    playerHealthFill = playerHealthBar:CreateTexture(nil, "ARTWORK")
-    playerHealthFill:SetPoint("TOPLEFT", playerHealthBar, "TOPLEFT", 0, 0)
-    playerHealthFill:SetPoint("BOTTOMLEFT", playerHealthBar, "BOTTOMLEFT", 0, 0)
-    playerHealthFill:SetWidth(0)
-    playerHealthFill:SetColorTexture(D.UnitBar.GetHealthColor(1))
-
-    playerPowerBar = CreateFrame("Frame", nil, frame)
-    playerPowerBar:SetPoint("TOPRIGHT", playerHealthBar, "BOTTOMRIGHT", 0, -PLAYER_BAR_GAP)
-    playerPowerBar:SetSize(CONTROL_BAR_WIDTH, PLAYER_POWER_HEIGHT)
-    local playerPowerBackground = playerPowerBar:CreateTexture(nil, "BACKGROUND")
-    playerPowerBackground:SetAllPoints()
-    playerPowerBackground:SetColorTexture(unpack(Style.slotColor))
-    playerPowerFill = playerPowerBar:CreateTexture(nil, "ARTWORK")
-    playerPowerFill:SetPoint("TOPLEFT", playerPowerBar, "TOPLEFT", 0, 0)
-    playerPowerFill:SetPoint("BOTTOMLEFT", playerPowerBar, "BOTTOMLEFT", 0, 0)
-    playerPowerFill:SetWidth(0)
-    if addon.Client == "foreverBeta" then
-        -- Native status bars preserve the dimensions while accepting restricted
-        -- health/power directly; Lua never reads back their values or aspects.
-        nativeHealth, nativePower = NativeBar(playerHealthBar), NativeBar(playerPowerBar)
-        playerHealthFill:Hide()
-        playerPowerFill:Hide()
-        nativeHealth:SetStatusBarColor(D.UnitBar.GetHealthColor(1))
-        healthCurve = C_CurveUtil.CreateColorCurve()
-        healthCurve:SetType(Enum.LuaCurveType.Step)
-        for _, point in ipairs({ 0, 0.150000001, 0.350000001, 0.600000001 }) do
-            healthCurve:AddPoint(point, CreateColor(D.UnitBar.GetHealthColor(point)))
-        end
-    end
-    overflowLabel = Style.Text(frame, Style.headerFontSize)
-    overflowLabel:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT",
-        -(ROW_INSET + CONTROL_RIGHT), 5)
-    overflowLabel:SetWidth(CONTROL_BAR_WIDTH)
-    overflowLabel:SetJustifyH("CENTER"); overflowLabel:SetWordWrap(false)
-    overflowLabel:SetTextColor(unpack(Style.mutedColor))
+    frame:SetFrameLevel(10)
+    local stride = Style.iconSize + Style.iconGap
+    local stripWidth = Style.iconSize + 6 + 6 * stride + 20
+    local stripLeft = WIDTH - ROW_INSET - CONTROL_RIGHT - CONTROL_BAR_WIDTH / 2 - stripWidth / 2
+    local row = CreateRow(1)
+    stanceAnchor = CreateFrame("Frame", nil, frame)
+    stanceAnchor:SetPoint("RIGHT", row.controlBar, "LEFT", -Style.iconGap, -(Style.iconSize - CONTROL_BAR_HEIGHT) / 2)
+    stanceAnchor:SetSize(Style.iconSize, Style.iconSize)
+    cooldownAnchor = CreateFrame("Frame", nil, frame)
+    cooldownAnchor:SetPoint("TOPLEFT", frame, "TOPLEFT", WIDTH - ROW_INSET - CONTROL_RIGHT - CONTROL_BAR_WIDTH, -1)
+    cooldownAnchor:SetSize(6 * stride + 20, Style.iconSize)
+    guidanceAnchor = CreateFrame("Frame", nil, frame)
+    guidanceAnchor:SetPoint("TOPLEFT", frame, "TOPLEFT", stripLeft, -1)
+    guidanceAnchor:SetSize(Style.iconSize, Style.iconSize)
+    HideRow(row)
     frame:Hide()
     return frame
 end
 
 function A.Initialize(deps)
     D = deps
-    assert(D and D.Observer and D.Now and D.IsInCombat
-            and D.UnitAPI
-            and D.UnitBar and D.UnitBar.GetHealthColor,
+    assert(D and D.Observer and D.Now
+            and D.UnitAPI,
         "ThreatAwareness missing dependencies")
 end
 
 function A.GetFrame() return frame end
 function A.GetRows() return rows end
-function A.GetPlayerStatusAnchor() return playerStatusAnchor end
-function A.GetPlayerHealthBar() return playerHealthBar end
-function A.GetPlayerPowerBar() return playerPowerBar end
+function A.GetStanceAnchor() return stanceAnchor end
+function A.GetCooldownAnchor() return cooldownAnchor end
+
+function A.GetGuidanceAnchor() return guidanceAnchor end
+
+function A.GetStanceGeometry()
+    local scale = Style.GetScale()
+    return { scale = scale, size = Style.iconSize,
+        x = WIDTH / 2 - ROW_INSET - CONTROL_RIGHT - CONTROL_BAR_WIDTH
+            - Style.iconGap - Style.iconSize / 2,
+        y = FIXED_ANCHOR_Y / scale - SPELL_SECTION_HEIGHT - 1 - Style.iconSize / 2 }
+end
+
+function A.GetCooldownGeometry(index)
+    return { scale = Style.GetScale(), size = Style.iconSize,
+        x = WIDTH / 2 - ROW_INSET - CONTROL_RIGHT - CONTROL_BAR_WIDTH
+            + (index - 1) * (Style.iconSize + Style.iconGap),
+        y = FIXED_ANCHOR_Y / Style.GetScale() - 1 }
+end
+
+function A.GetSealGeometry(index)
+    local geometry = A.GetCooldownGeometry(index)
+    geometry.y = FIXED_ANCHOR_Y / geometry.scale - SPELL_SECTION_HEIGHT - 1
+        - CONTROL_BAR_HEIGHT - 1 - STATUS_BAR_HEIGHT - Style.iconGap
+    return geometry
+end

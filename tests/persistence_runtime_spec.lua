@@ -1,9 +1,9 @@
 -- Fresh feature drivers per case; no installed character data is accessed.
 local realPrint = print
-local function RunCase(blockEffects, blockCooldowns)
-    local addon, frames, messages, callbacks = {}, {}, {}, {}
+local function RunCase(blockCooldowns)
+    local addon, frames, messages = {}, {}, {}
     assert(loadfile("Core/Access.lua"))("ApogeeTank", addon)
-    local effectViews, cooldownViews = 0, 0
+    local pickerViews, cooldownViews = 0, 0
     function CreateFrame()
         local frame = { scripts = {}, events = {}, shown = true }
         function frame:SetScript(event, callback) self.scripts[event] = callback end
@@ -25,22 +25,23 @@ local function RunCase(blockEffects, blockCooldowns)
     function IsControlKeyDown() return false end
     function IsAltKeyDown() return false end
     print = function(message) messages[#messages + 1] = message end
-    for _, path in ipairs({ "Core/ObservedSpellList.lua", "Effects/Model.lua",
-        "Cooldowns/Runtime.lua", "Effects/Runtime.lua" }) do
+    for _, path in ipairs({ "Core/ObservedSpellList.lua",
+        "Cooldowns/Runtime.lua", "Picker/Runtime.lua" }) do
         assert(loadfile(path))("ApogeeTank", addon)
     end
     addon.CooldownAPI = {
         GetStanceSpells = function() return {} end,
+        GetDefaultSpells = function() return {} end,
+        WatchRange = function() end,
         Read = function() return nil end,
     }
-    addon.Auras = { ReadPlayerHarmful = function() return {} end }
     addon.CooldownView = { Create = function()
         cooldownViews = cooldownViews + 1
         return { Render = function() end, Hide = function() end }
     end }
-    addon.EffectsView = { Create = function()
-        effectViews = effectViews + 1
-        return { Render = function() end, Toggle = function() end,
+    addon.PickerView = { Create = function()
+        pickerViews = pickerViews + 1
+        return { Refresh = function() end, Toggle = function() end,
             Close = function() end, Hide = function() end }
     end }
     local function Saved(blocked)
@@ -49,15 +50,10 @@ local function RunCase(blockEffects, blockCooldowns)
             ignored = { { spellId = 2, name = "Unchecked", icon = 2 } },
             futureField = { untouched = true } }
     end
-    local effectSaved, cooldownSaved = Saved(blockEffects), Saved(blockCooldowns)
+    local effectSaved, cooldownSaved = Saved(true), Saved(blockCooldowns)
     ApogeeTankEffectsDB, ApogeeTankCooldownsDB = effectSaved, cooldownSaved
     local cooldowns = addon.StartCooldowns(function() end)
-    addon.StartEffects({
-        Cooldowns = cooldowns, SetDemo = function() end,
-        GetRows = function() return {} end,
-        SetRowsChangedHandler = function(callback) callbacks.rowsChanged = callback end,
-        SetPlayerClickHandler = function(callback) callbacks.click = callback end,
-    })
+    local picker = addon.StartPicker(cooldowns)
     local function Event(event, ...)
         for _, frame in ipairs(frames) do
             if frame.events[event] then frame.scripts.OnEvent(frame, event, ...) end
@@ -72,7 +68,6 @@ local function RunCase(blockEffects, blockCooldowns)
     Event("UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 3)
     Event("SPELL_UPDATE_COOLDOWN")
     Event("UNIT_AURA", "target")
-    callbacks.rowsChanged()
     cooldowns.Refresh()
     cooldowns.Clear()
     Event("PLAYER_LEAVING_WORLD")
@@ -85,13 +80,9 @@ local function RunCase(blockEffects, blockCooldowns)
             and actual.ignored[1].spellId == 2,
             "unsupported saved schema was replaced or mutated")
     end
-    if blockEffects then
-        AssertPreserved(ApogeeTankEffectsDB, effectSaved)
-        assert(effectViews == 0 and callbacks.click == nil and not frames[2].shown,
-            "disabled effects must not build a picker or wake on row changes")
-    else
-        assert(effectViews == 1 and callbacks.click, "healthy effects did not initialize")
-    end
+    AssertPreserved(ApogeeTankEffectsDB, effectSaved)
+    assert(picker.CanConfigure() == (not blockCooldowns), "picker ignored cooldown model availability")
+    assert(pickerViews == (blockCooldowns and 0 or 1), "invalid picker lifecycle")
     if blockCooldowns then
         AssertPreserved(ApogeeTankCooldownsDB, cooldownSaved)
         assert(cooldowns.GetModel() == nil and cooldownViews == 0 and not frames[1].shown,
@@ -100,12 +91,10 @@ local function RunCase(blockEffects, blockCooldowns)
         assert(cooldowns.GetModel().IsWatched(1) and cooldownViews == 1,
             "healthy cooldowns did not initialize independently")
     end
-    assert(#messages == (blockEffects and 1 or 0) + (blockCooldowns and 1 or 0),
+    assert(#messages == (blockCooldowns and 1 or 0),
         "each disabled feature should explain the preserved data once")
     print = realPrint
 end
-RunCase(true, false)
-RunCase(false, true)
-RunCase(true, true)
-RunCase(false, false)
-print("Future saved schemas remain intact across feature events and independent startup passed")
+RunCase(true)
+RunCase(false)
+print("Cooldown schema guards and untouched legacy effect data passed")

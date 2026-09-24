@@ -4,7 +4,7 @@ param(
     [string]$WowRoot = $env:WOW_ROOT,
     [string]$MetadataPath = (Join-Path $PSScriptRoot '../docs/wow-api-export.json'),
     [string]$TocPath = (Join-Path $PSScriptRoot '../ApogeeTank.toc'),
-    [string]$Target = 'classicEra',
+    [string]$Target = 'foreverBeta',
     [switch]$Record
 )
 $ErrorActionPreference = 'Stop'
@@ -46,7 +46,7 @@ $clientRoot = Join-Path $WowRoot $targetInfo.clientDirectory
 $executable = Get-Item -LiteralPath (Join-Path $clientRoot $targetInfo.executable)
 $documentation = Join-Path $clientRoot 'BlizzardInterfaceCode/Interface/AddOns/Blizzard_APIDocumentationGenerated'
 $requiredFiles = @('Blizzard_APIDocumentationGenerated.toc', 'UnitDocumentation.lua',
-    'UnitAuraDocumentation.lua', 'NamePlateDocumentation.lua', 'SpellDocumentation.lua',
+    'SpellDocumentation.lua',
     'SpellSharedDocumentation.lua', 'RestrictedActionsDocumentation.lua')
 if ($targetInfo.PSObject.Properties['requiredFiles']) {
     $requiredFiles += @($targetInfo.requiredFiles)

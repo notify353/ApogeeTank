@@ -1,8 +1,7 @@
 local _, addon = ...
 local View = {}
-addon.EffectsView = View
+addon.PickerView = View
 local Style = addon.Style
-local ICON_SIZE, ICON_GAP, ICON_COLUMNS = Style.iconSize, Style.iconGap, 4
 
 local function ShowTooltip(frame, effect, note)
     GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
@@ -12,26 +11,34 @@ local function ShowTooltip(frame, effect, note)
     GameTooltip:Show()
 end
 
+local function HideTooltip(frame)
+    if GameTooltip:IsOwned(frame) then GameTooltip:Hide() end
+end
+
 local function Tooltip(frame, effect, note)
     frame:SetScript("OnEnter", function(self)
         ShowTooltip(self, effect, note)
     end)
-    frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame:SetScript("OnLeave", function() HideTooltip(frame) end)
+    frame:SetScript("OnHide", function() HideTooltip(frame) end)
 end
 
--- Effects owns the combined picker; callbacks expose only the other feature's
--- selection operations, never its private frames or event state.
+-- The picker consumes cooldown selection operations, not private HUD frames.
 function View.Create(options)
-    local model, cooldowns = options.Model, options.Cooldowns
-    local onChanged, onCleared = options.OnChanged, options.OnCleared
-    local canConfigure, onVisibility = options.CanConfigure, options.OnVisibility
-    local self, lanes, columns = {}, {}, {}
-    local window
+    local cooldowns = options.Cooldowns
+    local onChanged = options.OnChanged
+    local canConfigure = options.CanConfigure
+    local self, column = {}, nil
+    local window, preview
+    local PREVIEW_HEIGHT = 120
     local RefreshWindow
     local function RefreshColumn(column)
         local model, rows = column.model, column.rows
         local content, scroll, empty = column.content, column.scroll, column.empty
         if column.revision == model.GetRevision() then return end
+        -- Existing rows can be rebound to different spells after a selection.
+        -- Do not leave the previous spell tooltip attached to the recycled row.
+        for _, row in ipairs(rows) do HideTooltip(row); HideTooltip(row.hover) end
         column.revision = model.GetRevision()
         local entries = model.GetEntries()
         empty:SetShown(#entries == 0)
@@ -68,7 +75,7 @@ function View.Create(options)
                 end
                 local _, reason = model.SetWatched(effect.spellId, button:GetChecked())
                 onChanged()
-                if column.cooldown then cooldowns.Refresh() end
+                cooldowns.Refresh()
                 RefreshWindow()
                 if reason then ShowTooltip(button, effect, reason) end
             end)
@@ -80,24 +87,24 @@ function View.Create(options)
     end
     RefreshWindow = function()
         if not window or not window:IsShown() then return end
-        for _, column in ipairs(columns) do RefreshColumn(column) end
+        if column then RefreshColumn(column) end
+        if preview then preview.Refresh() end
     end
     local function Disarm(column)
         column.confirm:Hide()
         column.clear:SetText("Clear")
     end
-    local function BuildColumn(title, columnModel, left, isCooldown)
-        local column = { model = columnModel, rows = {}, cooldown = isCooldown }
-        columns[#columns + 1] = column
+    local function BuildColumn(title, columnModel, left)
+        column = { model = columnModel, rows = {} }
         local header = CreateFrame("Frame", nil, window)
-        header:SetPoint("TOPLEFT", window, "TOPLEFT", left, -14)
+        header:SetPoint("TOPLEFT", window, "TOPLEFT", left, -14 - PREVIEW_HEIGHT)
         header:SetSize(286, Style.headerHeight)
         Style.Background(header, Style.headerColor)
         local heading = Style.Text(header, Style.headerFontSize)
         heading:SetPoint("LEFT", header, "LEFT", 6, 0)
         heading:SetText(title)
         local scroll = CreateFrame("ScrollFrame", nil, window, "UIPanelScrollFrameTemplate")
-        scroll:SetPoint("TOPLEFT", window, "TOPLEFT", left, -42)
+        scroll:SetPoint("TOPLEFT", window, "TOPLEFT", left, -42 - PREVIEW_HEIGHT)
         scroll:SetSize(286, 222)
         local content = CreateFrame("Frame", nil, scroll)
         content:SetSize(286, 222)
@@ -126,20 +133,19 @@ function View.Create(options)
             if not confirm:IsShown() or (canConfigure and not canConfigure()) then return end
             columnModel.Clear()
             Disarm(column)
-            if isCooldown then cooldowns.Clear()
-            else
-                if onCleared then onCleared() end
-                self.Render({})
-            end
+            cooldowns.Clear()
             scroll:SetVerticalScroll(0)
             RefreshWindow()
         end)
     end
     local function BuildWindow()
         if window then return end
-        window = CreateFrame("Frame", "ApogeeTankEffectsWindow", UIParent, "BackdropTemplate")
-        window:SetScale(Style.GetScale())
-        window:SetSize(model and 680 or 340, 312)
+        window = CreateFrame("Frame", "ApogeeTankPickerWindow", UIParent, "BackdropTemplate")
+        local width, height = 340, 312 + PREVIEW_HEIGHT
+        local scale = math.min(Style.GetScale(), (UIParent:GetWidth() - 24) / width,
+            (UIParent:GetHeight() - 24) / height)
+        window:SetScale(scale)
+        window:SetSize(width, height)
         window:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
         window:SetFrameStrata("DIALOG")
         window:EnableMouse(true)
@@ -150,85 +156,33 @@ function View.Create(options)
             if not canConfigure or canConfigure() then window:StartMoving() end
         end)
         window:SetScript("OnDragStop", function() window:StopMovingOrSizing() end)
-        window:SetScript("OnShow", function() if onVisibility then onVisibility(true) end end)
+        window:SetScript("OnShow", function() if preview then preview.SetShown(true) end end)
         window:SetScript("OnHide", function()
             window:StopMovingOrSizing()
-            for _, column in ipairs(columns) do Disarm(column) end
-            if onVisibility then onVisibility(false) end
+            if column then
+                Disarm(column)
+                for _, row in ipairs(column.rows) do HideTooltip(row); HideTooltip(row.hover) end
+            end
+            if preview then preview.SetShown(false) end
         end)
         window:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8",
             edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
         window:SetBackdropColor(unpack(Style.panelColor))
         window:SetBackdropBorderColor(unpack(Style.borderColor))
-        if model then
-            local divider = window:CreateTexture(nil, "BACKGROUND")
-            divider:SetPoint("TOP", window, "TOP", 0, -14)
-            divider:SetSize(1, 280)
-            divider:SetColorTexture(unpack(Style.headerColor))
-        end
+        preview = addon.CreatePickerPreview(window, {
+            Cooldowns = cooldowns.GetModel(),
+        })
         local close = CreateFrame("Button", nil, window, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", window, "TOPRIGHT", -2, -2)
         close:SetScript("OnClick", function() window:Hide() end)
         if cooldowns and cooldowns.GetModel() then
-            BuildColumn("Cooldowns", cooldowns.GetModel(), model and 358 or 18, true)
+            BuildColumn("Cooldowns", cooldowns.GetModel(), 18)
         end
-        if model then BuildColumn("Debuffs", model, 18, false) end
         UISpecialFrames = UISpecialFrames or {}
-        UISpecialFrames[#UISpecialFrames + 1] = "ApogeeTankEffectsWindow"
+        UISpecialFrames[#UISpecialFrames + 1] = "ApogeeTankPickerWindow"
         window:Hide()
     end
-    local function HideLane(lane)
-        for _, icon in ipairs(lane.icons) do icon:Hide() end
-        if lane.overflow then lane.overflow:Hide() end
-    end
-    function self.Render(presentations)
-        local active = {}
-        for _, presentation in ipairs(presentations) do
-            local anchor, missing = presentation.anchor, presentation.missing
-            active[anchor] = true
-            local lane = lanes[anchor]
-            if not lane then lane = { icons = {} }; lanes[anchor] = lane end
-            if lane.guid ~= presentation.guid then HideLane(lane) end
-            lane.guid = presentation.guid
-            local visibleCount = math.min(#missing, ICON_COLUMNS)
-            for index = 1, visibleCount do
-                local effect = missing[index]
-                local icon = lane.icons[index]
-                if not icon then
-                    icon = CreateFrame("Frame", nil, anchor)
-                    icon:SetSize(ICON_SIZE, ICON_SIZE)
-                    -- The HUD supplies the meter anchor; reminders fill its left gap.
-                    icon:SetPoint("RIGHT", presentation.missingAnchor or anchor, "LEFT",
-                        -5 - (index - 1) * (ICON_SIZE + ICON_GAP), 0)
-                    icon:EnableMouse(false)
-                    icon.texture = Style.Icon(icon)
-                    lane.icons[index] = icon
-                end
-                icon.texture:SetTexture(effect.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-                icon:Show()
-            end
-            for index = visibleCount + 1, #lane.icons do lane.icons[index]:Hide() end
-            if #missing > ICON_COLUMNS then
-                if not lane.overflow then
-                    local overflow = CreateFrame("Frame", nil, anchor)
-                    overflow:SetSize(26, ICON_SIZE)
-                    overflow:SetPoint("RIGHT", lane.icons[ICON_COLUMNS], "LEFT", -3, 0)
-                    overflow:EnableMouse(false)
-                    overflow.label = Style.Text(overflow, 10)
-                    overflow.label:SetAllPoints()
-                    lane.overflow = overflow
-                end
-                lane.overflow.label:SetText("+" .. (#missing - ICON_COLUMNS))
-                lane.overflow:Show()
-            elseif lane.overflow then
-                lane.overflow:Hide()
-            end
-        end
-        for anchor, lane in pairs(lanes) do
-            if not active[anchor] then HideLane(lane); lane.guid = nil end
-        end
-        RefreshWindow()
-    end
+    self.Refresh = RefreshWindow
     function self.Toggle()
         if canConfigure and not canConfigure() then return end
         BuildWindow()
@@ -236,10 +190,6 @@ function View.Create(options)
         RefreshWindow()
     end
     function self.Close()
-        if window then window:Hide() end
-    end
-    function self.Hide()
-        for _, lane in pairs(lanes) do HideLane(lane) end
         if window then window:Hide() end
     end
     return self

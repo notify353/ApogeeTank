@@ -2,13 +2,14 @@ local _, addon = ...
 local Access = addon.Access
 local DISCOVERY_WINDOW, UPDATE_INTERVAL = 10, 0.1
 
-function addon.StartCooldowns(anchor)
+function addon.StartCooldowns(anchor, getGeometry)
     local driver = CreateFrame("Frame")
     local model, view
     local candidates, states = {}, {}
     local stances = {}
+    local rangeWatched, registeringRange = {}, false
     local elapsed = 0
-    local inCombat = false
+    local inWorld = true
     local initializationFailed = false
     local changedHandler, notifiedRevision
     local function UpdateStances()
@@ -18,10 +19,34 @@ function addon.StartCooldowns(anchor)
             if model then model.Forget(id) end
         end
     end
+    local function SeedDefaults()
+        if not model then return end
+        for _, spell in ipairs(addon.CooldownAPI.GetDefaultSpells()) do
+            local ignored = false
+            for _, entry in ipairs(model.GetEntries()) do
+                for _, id in ipairs(spell.ranks) do
+                    if entry.spellId == id and not entry.watched then ignored = true end
+                end
+            end
+            model.Observe({ spell })
+            if ignored then model.SetWatched(spell.spellId, false) end
+        end
+    end
     local entries, revision = {}, nil
     local function Entries()
         if model.GetRevision() ~= revision then
             entries, revision = model.GetEntries(), model.GetRevision()
+            local wanted = {}
+            for _, entry in ipairs(entries) do if entry.watched then wanted[entry.spellId] = true end end
+            registeringRange = true
+            for id in pairs(rangeWatched) do
+                if not wanted[id] then addon.CooldownAPI.WatchRange(id, false) end
+            end
+            for id in pairs(wanted) do
+                if not rangeWatched[id] then addon.CooldownAPI.WatchRange(id, true) end
+            end
+            rangeWatched = wanted
+            registeringRange = false
         end
         return entries
     end
@@ -33,10 +58,10 @@ function addon.StartCooldowns(anchor)
             if changedHandler then changedHandler() end
         end
         local now = GetTime()
-        if inCombat then view.Render(Entries(), states, now)
+        if inWorld then view.Render(Entries(), states, now)
         else view.Hide() end
         local active = next(candidates) ~= nil
-        if inCombat and not active then
+        if inWorld and not active then
             for _, state in pairs(states) do
                 if state.enabled and state.duration > 0
                     and state.start + state.duration > now then
@@ -74,12 +99,15 @@ function addon.StartCooldowns(anchor)
             if state and state.gcdOnly then
                 state.start, state.duration = 0, 0
             elseif state and not state.charges and state.enabled
-                and state.duration > 0 and state.realCooldown == nil then
-                -- Only active timers need GCD classification. Ready and held
-                -- states are authoritative even outside a cooldown event.
+                and state.duration > 0 and state.realCooldown == nil
+                and state.coolingDown == nil then
+                -- Unclassified activity cannot reuse old readiness. Retain only
+                -- a confirmed timer that is still running, otherwise show unknown.
                 local previous = states[entry.spellId]
-                if previous then
-                    state.start, state.duration = previous.start, previous.duration
+                if previous and previous.enabled and previous.duration > 0
+                    and previous.start + previous.duration > now then
+                    previous.castable = state.castable
+                    state = previous
                 else state = nil end
             end
             nextStates[entry.spellId] = state
@@ -87,10 +115,21 @@ function addon.StartCooldowns(anchor)
         states = nextStates
         Refresh()
     end
+    local function UpdateCastability()
+        if not model then return end
+        for _, entry in ipairs(Entries()) do
+            local state = states[entry.spellId]
+            if entry.watched and state and addon.CooldownAPI.Castable then
+                state.castable = addon.CooldownAPI.Castable(entry.spellId)
+            end
+        end
+        Refresh()
+    end
     driver:SetScript("OnEvent", function(_, event, unit, _, id)
-        if initializationFailed then return end
+        if initializationFailed or registeringRange then return end
+        if not inWorld and event ~= "PLAYER_ENTERING_WORLD" and event ~= "PLAYER_LOGIN" then return end
         if event == "PLAYER_LOGIN" then
-            inCombat = UnitAffectingCombat("player") == true
+            inWorld = true
             local reason
             model, reason = addon.ObservedSpellList.Create(ApogeeTankCooldownsDB)
             if not model then
@@ -100,11 +139,12 @@ function addon.StartCooldowns(anchor)
                 return
             end
             ApogeeTankCooldownsDB = model.GetSaved()
-            view = addon.CooldownView.Create(anchor)
+            view = addon.CooldownView.Create(anchor, getGeometry)
             UpdateStances()
+            SeedDefaults()
             Sample(false)
         elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
-            inCombat = event == "PLAYER_REGEN_DISABLED"
+            if event == "PLAYER_REGEN_ENABLED" then SeedDefaults() end
             Sample(false)
         elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
             if not Access.CanRead(unit, id) then return end
@@ -113,24 +153,29 @@ function addon.StartCooldowns(anchor)
                 driver:Show()
             end
         elseif event == "PLAYER_LEAVING_WORLD" then
-            inCombat = false
+            inWorld = false
             candidates = {}
             driver:Hide()
             if view then view.Hide() end
+        elseif event == "SPELL_UPDATE_USABLE" or event == "SPELL_RANGE_CHECK_UPDATE"
+            or event == "PLAYER_TARGET_CHANGED" then
+            UpdateCastability()
         elseif event == "SPELL_UPDATE_COOLDOWN" or event == "SPELL_UPDATE_CHARGES" then
             Sample(event == "SPELL_UPDATE_COOLDOWN")
         elseif event == "PLAYER_ENTERING_WORLD" or event == "UPDATE_SHAPESHIFT_FORMS"
             or event == "SPELLS_CHANGED" then
             if event == "PLAYER_ENTERING_WORLD" then
-                inCombat = UnitAffectingCombat("player") == true
+                inWorld = true
             end
             UpdateStances()
+            SeedDefaults()
             Sample(false)
         end
     end)
     for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "PLAYER_LEAVING_WORLD",
         "UNIT_SPELLCAST_SUCCEEDED", "SPELL_UPDATE_COOLDOWN", "SPELL_UPDATE_CHARGES",
         "UPDATE_SHAPESHIFT_FORMS", "SPELLS_CHANGED",
+        "SPELL_UPDATE_USABLE", "SPELL_RANGE_CHECK_UPDATE", "PLAYER_TARGET_CHANGED",
         "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }) do
         driver:RegisterEvent(event)
     end

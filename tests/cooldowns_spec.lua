@@ -65,6 +65,10 @@ assert(runtime.GetModel().IsWatched(2) and rendered.states[2].charges == 1,
     "charge-based cooldown was not learned")
 Event("PLAYER_LEAVING_WORLD")
 assert(not driver.shown and rendered == nil, "cooldown driver survived world exit")
+local zoningReads = apiReads
+Event("SPELL_UPDATE_COOLDOWN")
+assert(apiReads == zoningReads and rendered == nil, "zoning cooldown event revived display")
+Event("PLAYER_ENTERING_WORLD")
 print("Cooldown discovery, GCD rejection, charges, opt-outs and event-driven reads passed")
 
 function GetNumShapeshiftForms() return 1 end
@@ -80,9 +84,9 @@ assert(runtime.GetModel().IsWatched(3), "stance filter blocked ordinary abilitie
 print("Dynamic stance exclusion and existing-list cleanup passed")
 
 Event("PLAYER_REGEN_ENABLED")
-assert(rendered == nil, "cooldowns visible outside combat")
+assert(rendered, "cooldowns hidden outside combat")
 Event("SPELL_UPDATE_COOLDOWN")
-assert(rendered == nil, "cooldown event revealed icons outside combat")
+assert(rendered, "cooldown event hid icons outside combat")
 Event("PLAYER_REGEN_DISABLED")
 assert(rendered, "combat entry did not restore cooldowns")
 
@@ -105,11 +109,27 @@ runtime.Refresh()
 assert(rendered.states[3] and rendered.states[3].duration == 0,
     "rechecked ready cooldown required an unrelated cooldown event")
 
+-- Usability/target refreshes must classify readable timers without discovery.
+cooldown.startTime, cooldown.duration, cooldown.isActive = now, 1.5, true
+cooldown.isOnGCD = true
+Event("SPELL_UPDATE_COOLDOWN")
+Event("PLAYER_TARGET_CHANGED")
+assert(rendered.states[3] and rendered.states[3].duration == 0, "GCD refresh became a question mark")
+cooldown.isOnGCD, cooldown.duration = false, 10
+Event("SPELL_UPDATE_COOLDOWN")
+local readsBeforeUsability = apiReads
+for i = 1, 100 do Event("SPELL_UPDATE_USABLE"); Event("PLAYER_TARGET_CHANGED") end
+assert(apiReads == readsBeforeUsability, "castability events resampled timer APIs")
+assert(rendered.states[3] and rendered.states[3].duration == 10, "running timer lost on usability refresh")
+-- Clear this confirmed timer before testing genuinely unknown activity.
+cooldown.startTime, cooldown.duration, cooldown.isActive = 0, 0, false
+Event("SPELL_UPDATE_COOLDOWN")
+
 -- An unclassified active timer must not become a guessed cooldown.
 cooldown.startTime, cooldown.duration, cooldown.isActive = now, 1.5, true
 cooldown.isOnGCD = nil
 Event("SPELL_UPDATE_COOLDOWN")
-assert(rendered.states[3].duration == 0, "unclassified timer replaced known readiness")
+assert(rendered.states[3] == nil, "unclassified active timer reused stale readiness")
 runtime.GetModel().SetWatched(3, false)
 runtime.Refresh()
 runtime.GetModel().SetWatched(3, true)

@@ -1,20 +1,22 @@
 -- Standalone TOC execution with an instrumented WoW UI; no source addon loaded.
-local now, interface, project = 10, 11509, 2
+local now, interface, project = 10, 16001, 1
 local combat, driver = false, nil
 local frames, named = {}, {}
 local methods = {}
+local Capture = assert(loadfile("tests/ui_capture.lua"))()
 local function Frame(kind, name, parent, template)
     local frame = setmetatable({ kind = kind, name = name, parent = parent, template = template,
         shown = true, points = {}, scripts = {}, events = {} }, { __index = methods })
+    if template == "UIPanelCloseButton" then frame.width, frame.height = 32, 32 end
     frames[#frames + 1] = frame
     if name then assert(not named[name], "duplicate frame name"); named[name] = frame end
     return frame
 end
 function methods:SetPoint(...) self.points[#self.points + 1] = {...} end
 function methods:ClearAllPoints() self.points = {} end
-function methods:SetAllPoints() end
+function methods:SetAllPoints(relative) self.allPoints = relative or self.parent end
 function methods:SetBackdrop() end
-function methods:SetBackdropColor() end
+function methods:SetBackdropColor(...) self.backdropColor = {...} end
 function methods:SetBackdropBorderColor() end
 function methods:SetScrollChild(child) self.scrollChild = child end
 function methods:UpdateScrollChildRect() end
@@ -26,6 +28,13 @@ function methods:SetHeight(value) self.height = value end
 function methods:SetSize(w, h) self.width, self.height = w, h end
 function methods:SetScale(value) self.scale = value end
 function methods:SetFrameLevel(value) self.frameLevel = value end
+function methods:GetFrameLevel() return self.frameLevel or 0 end
+function methods:GetWidth() return self.width or 1920 end
+function methods:GetHeight() return self.height or 1080 end
+function methods:GetEffectiveScale() return self.scale or 1 end
+function methods:GetCenter() return 100, 100 end
+function methods:SetEnabled(value) self.enabled = value end
+function methods:SetHighlightTexture(value) self.highlight = value end
 function methods:RegisterForClicks(...) self.clicks = {...} end
 function methods:SetAttribute(key, value)
     assert(not InCombatLockdown(), "insecure protected attribute write in combat")
@@ -37,6 +46,15 @@ function RegisterStateDriver(frame, state, condition)
     assert(not InCombatLockdown(), "state-driver registration during combat")
     frame.stateDriver = { state, condition }
 end
+function UnregisterAttributeDriver(frame, key)
+    assert(not InCombatLockdown())
+    if frame.attributeDrivers then frame.attributeDrivers[key] = nil end
+end
+function RegisterAttributeDriver(frame, key, value)
+    assert(not InCombatLockdown())
+    frame.attributeDrivers = frame.attributeDrivers or {}
+    frame.attributeDrivers[key] = value
+end
 function SecureHandlerWrapScript()
     error("Forever restricted compiler unavailable; addon must not register snippets")
 end
@@ -45,9 +63,10 @@ function methods:SetTextColor(...) self.textColor = {...} end
 function methods:GetFont() return "Fonts/FRIZQT__.TTF", 12, "" end
 function methods:SetFont(font, size, flags) self.font, self.fontSize, self.fontFlags = font, size, flags end
 function methods:SetText(value) self.text = value end
+function methods:SetDesaturated(value) self.desaturated = value end
 function methods:SetTexture(value) self.texture = value end
 function methods:SetTexCoord(...) self.texCoord = {...} end
-function methods:SetJustifyH() end
+function methods:SetJustifyH(value) self.justify = value end
 function methods:SetWordWrap() end
 function methods:SetAlpha(value) self.alpha = value end
 function methods:SetClampedToScreen(value) self.clamped = value end
@@ -60,7 +79,7 @@ function methods:SetFrameStrata(value) self.strata = value end
 function methods:Hide() local was = self.shown; self.shown = false; if was and self.scripts.OnHide then self.scripts.OnHide(self) end end
 function methods:Show() local was = self.shown; self.shown = true; if not was and self.scripts.OnShow then self.scripts.OnShow(self) end end
 function methods:SetShown(value) if value then self:Show() else self:Hide() end end
-function methods:IsShown() return self.shown end
+function methods:IsShown() return self.shown and (not self.parent or self.parent:IsShown()) end
 function methods:CreateTexture(name, layer)
     local texture = Frame("Texture", name, self)
     texture.layer = layer
@@ -74,6 +93,8 @@ end
 function methods:SetScript(event, callback) self.scripts[event] = callback end
 CreateFrame = Frame
 UIParent = Frame("Frame", "UIParent")
+Minimap = Frame("Frame", "Minimap", UIParent)
+function GetCursorPosition() return 20, 100 end
 WOW_PROJECT_CLASSIC = 2
 WOW_PROJECT_ID = project
 SlashCmdList = {}
@@ -84,15 +105,19 @@ function IsAltKeyDown() return altDown end
 function InCombatLockdown() return lockdown end
 GameTooltip = { shown = false }
 function GameTooltip:SetOwner(owner) self.owner = owner end
+function GameTooltip:IsOwned(owner) return self.owner == owner end
 function GameTooltip:SetText(text) self.text = text end
 function GameTooltip:SetSpellByID(id) self.spellId = id end
 function GameTooltip:AddLine() error("unexpected addon text on standard spell tooltip") end
 function GameTooltip:Show() self.shown = true end
 function GameTooltip:Hide() self.shown = false end
-function GetBuildInfo() return "1.15.9", "69722", "", interface end
+function GetBuildInfo() return "1.60.1", "69977", "", interface end
 function GetTime() return now end
 function UnitAffectingCombat() return combat end
-function UnitClass() return "Warrior", "WARRIOR" end
+local classToken = "WARRIOR"
+function UnitClass() return classToken, classToken end
+function GetNumShapeshiftForms() return 1 end
+function GetShapeshiftFormInfo() return 8001, true, true, 9001 end
 
 local tokens = {
     player = { guid = "player", health = 80, maximum = 100 },
@@ -117,11 +142,6 @@ function UnitDetailedThreatSituation(unit)
 end
 function UnitHealth(unit) return tokens[unit].health or 100 end
 function UnitHealthMax(unit) return tokens[unit].maximum or 100 end
-local power, maximumPower, powerType, powerToken = 30, 100, 1, "RAGE"
-function UnitPowerType() return powerType, powerToken end
-function UnitPower() return power end
-function UnitPowerMax() return maximumPower end
-PowerBarColor = { RAGE = { r = 1, g = 0, b = 0 } }
 local casting, channeling
 function UnitCastingInfo(unit)
     if casting and tokens[unit].hostile then
@@ -133,18 +153,6 @@ function UnitChannelInfo(unit)
         return "Drain", "Drain", 2, 10000, 14000, false, true, 689
     end
 end
-local auraStacks, hasSunder, aurasAvailable = 3, true, true
-local sunderSource = "player"
-local enemy2Auras, extraTargetAura = {}, nil
-C_UnitAuras = { GetAuraDataByIndex = function(unit, index, filter)
-    assert(filter == "HARMFUL")
-    if not aurasAvailable then error("Aura read unavailable") end
-    if unit == "nameplate2" then return enemy2Auras[index] end
-    if index == 1 then return { sourceUnit = "party1", spellId = 1160, name = "Demoralizing Shout", icon = 20 } end
-    if index == 2 and hasSunder then return { sourceUnit = sunderSource, spellId = 7386, name = "Sunder Armor", icon = 10,
-        applications = auraStacks, expirationTime = 14, duration = 30 } end
-    if index == 3 then return extraTargetAura end
-end }
 C_NamePlate = { GetNamePlates = function() return { { namePlateUnitToken = "nameplate1" } } end }
 
 local function LoadAddon()
@@ -156,17 +164,7 @@ local function LoadAddon()
     return addon
 end
 
--- A stale-addon override must not execute the feature on other clients.
-interface = 20506
-local before = #frames
-LoadAddon()
-assert(#frames == before, "unsupported interface created UI")
-interface, WOW_PROJECT_ID = 11509, 1
-LoadAddon()
-assert(#frames == before, "non-Era project created UI")
-WOW_PROJECT_ID = WOW_PROJECT_CLASSIC
-local addon = LoadAddon()
-assert(driver and driver.events.PLAYER_LOGIN)
+local addon
 local function Event(event, unit)
     local delivered = false
     for _, listener in ipairs(frames) do
@@ -175,7 +173,14 @@ local function Event(event, unit)
             listener.scripts.OnEvent(listener, event, unit)
         end
     end
-    assert(delivered, "unregistered test event: " .. event)
+    -- Model the engine-owned visibility condition, not an addon callback.
+    for _, listener in ipairs(frames) do
+        if listener.stateDriver then
+            listener:SetShown(UnitExists("target") and UnitCanAttack("player", "target")
+                and not UnitIsDeadOrGhost("target"))
+        end
+    end
+    -- Unregistered events model engine delivery to zero listeners.
 end
 local function Tick(elapsed)
     now = now + elapsed
@@ -185,555 +190,21 @@ local function Tick(elapsed)
         end
     end
 end
-Event("PLAYER_LOGIN")
-local hud = addon.ThreatHud.GetFrame()
-assert(hud.name == "ApogeeTankThreatHud" and hud.width == 389)
-assert(hud.points[1][1] == "TOP" and hud.points[1][3] == "CENTER"
-    and hud.points[1][4] == 0 and hud.points[1][5] == 55,
-    "fixed original placement changed")
-assert(hud:IsShown() and not hud.mouse and not hud.movable)
-assert(next(addon.ThreatHud.GetRows()) == nil, "idle enemy rows appeared")
-assert(addon.ThreatHud.GetPlayerHealthBar():IsShown())
-
-combat = true
-Event("PLAYER_REGEN_DISABLED")
-local row = addon.ThreatHud.GetRows()[1]
-assert(row and row:IsShown() and row.enemy.guid == "enemy")
-assert(addon.ThreatObserver.GetSnapshot().total == 1, "aliases created duplicate enemies")
-assert(row.height == 24 and row.controlBar.width == 112 and row.controlBar.height == 16)
-assert(row.enemy.control == 40 and row.controlDirection == "positive")
-assert(row.debuffIcons[1]:IsShown() and row.debuffIcons[1].count.text == "3")
-assert(not row.debuffIcons[2]:IsShown(), "another player's debuff was rendered")
-local indicator = row.targetIndicator
-assert(indicator:IsShown() and indicator.parent == row and indicator.layer == "OVERLAY",
-    "original selected rail must belong to the row")
-assert(indicator.points[1][1] == "TOPRIGHT" and indicator.points[1][2] == row
-    and indicator.points[1][3] == "TOPRIGHT" and indicator.points[1][4] == 0 and indicator.points[1][5] == 0
-    and indicator.points[2][1] == "BOTTOMRIGHT" and indicator.points[2][2] == row
-    and indicator.points[2][3] == "BOTTOMRIGHT" and indicator.points[2][4] == 0 and indicator.points[2][5] == 0
-    and indicator.width == 3 and row.height == 24,
-    "original selected rail must remain 3px wide across the full 24px row")
-local railLeft = indicator.points[1][4] - indicator.width
-assert(railLeft - row.controlBar.points[1][4] == 4
-    and railLeft - row.statusBar.points[1][4] == 4
-    and indicator.points[1][4] < row.marker.points[1][4],
-    "original rail gap must keep it clear of child meters and marker lane")
-assert(indicator.color[1] == 0.38 and indicator.color[2] == 0.72
-    and indicator.color[3] == 0.92 and indicator.color[4] == 0.95,
-    "original baby-blue rail color and opacity changed")
-
-local originalTarget = tokens.target
-tokens.target = nil
-Event("PLAYER_TARGET_CHANGED")
-Tick(0.1)
-assert(not indicator:IsShown(), "clearing target retained selection rail")
-tokens.target = originalTarget
-Event("PLAYER_TARGET_CHANGED")
-Tick(0.1)
-assert(indicator:IsShown(), "retargeting did not restore selection rail")
-
-auraStacks = 5
-Event("UNIT_AURA", "nameplate1")
-Tick(0.1)
-assert(row.debuffIcons[1].count.text == "5", "alias aura invalidation failed")
-held, playerThreat = false, 45
-Event("UNIT_THREAT_LIST_UPDATE", "target")
-Tick(0.1)
-assert(row.enemy.control == -55 and row.controlDirection == "negative")
-assert(row.rail.color[1] == 1 and row.rail.color[2] == 0.1)
-
-casting = true
-Event("UNIT_SPELLCAST_START", "target")
-Tick(0.1)
-assert(row.statusFill.color[1] == 1 and row.statusFill.color[2] == 0.68)
-local castWidth = row.statusFill.width
-Tick(0.05)
-assert(row.statusFill.width > castWidth, "cast animation did not advance")
-casting, channeling = false, true
-Event("UNIT_SPELLCAST_CHANNEL_START", "target")
-Tick(0.1)
-local channelWidth = row.statusFill.width
-assert(row.statusFill.color[1] == 0.58, "protected channel color changed")
-Tick(0.05)
-assert(row.statusFill.width < channelWidth, "channel did not drain")
-channeling = false
-Event("UNIT_SPELLCAST_CHANNEL_STOP", "target")
-Tick(0.1)
-assert(row.statusFill.width == 84 and row.statusFill.color[1] == 0.28,
-    "health strip did not return after casting")
-
-maximumPower = 0
-Event("UNIT_MAXPOWER", "player")
-Tick(0.1)
-assert(not addon.ThreatHud.GetPlayerPowerBar():IsShown())
-powerType, powerToken, maximumPower = 0, "MANA", 100
-Event("UNIT_DISPLAYPOWER", "player")
-Tick(0.1)
-assert(addon.ThreatHud.GetPlayerPowerBar():IsShown())
-
-tokens.target.dead = true
-Event("UNIT_HEALTH", "target")
-Tick(0.1)
-assert(not row:IsShown() and addon.ThreatObserver.GetSnapshot().total == 0,
-    "dead enemy retained its threat row")
-tokens.target.dead = false
-Tick(0.1)
-assert(row:IsShown())
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-assert(not row:IsShown() and hud:IsShown(), "combat exit did not clear enemy rows")
-assert(addon.ThreatObserver.GetSnapshot().total == 0)
-
-Event("PLAYER_LEAVING_WORLD")
-assert(not driver:IsShown() and not hud:IsShown())
-combat = true
-Event("PLAYER_ENTERING_WORLD")
-assert(driver:IsShown() and hud:IsShown() and row:IsShown(), "world entry did not recover")
-Event("PLAYER_LOGIN")
-assert(named.ApogeeTankThreatHud == hud, "duplicate initialization rebuilt the HUD")
-assert(ApogeePartyHealthBars_ThreatAwareness == nil and ApogeePartyHealthBars_S == nil,
-    "standalone addon leaked source globals")
-
--- Actual picker callbacks and reminder icons against live target transitions.
-Tick(0.1)
-assert(ApogeeTankEffectsDB and #ApogeeTankEffectsDB.watched == 1,
-    "own debuff was not automatically watched before opening the UI")
-assert(SLASH_APOGEETANKEFFECTS1 == nil and SlashCmdList.APOGEETANKEFFECTS == nil,
-    "old slash-command entry point remains")
-local healthBar = addon.ThreatHud.GetPlayerHealthBar()
-local function ClickHealth(button, shift, control, alt)
+local function ClickMinimap(button, shift, control, alt)
     shiftDown, controlDown, altDown = shift == true, control == true, alt == true
-    healthBar.scripts.OnMouseUp(healthBar, button or "LeftButton")
+    local minimapButton = named.ApogeeTankMinimapButton
+    minimapButton.scripts.OnClick(minimapButton, button or "LeftButton")
 end
-ClickHealth("LeftButton", true)
-Tick(0.1)
-assert(not named.ApogeeTankEffectsWindow and not healthBar.mouse,
-    "combat click opened settings or left the health bar interactive")
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-Tick(0.1)
-assert(healthBar.mouse, "out-of-combat health-bar access was not restored")
-assert(not healthBar.scripts.OnEnter and not healthBar.scripts.OnLeave, "health bar still has a hover tooltip")
-for _, gesture in ipairs({ {"LeftButton", false}, {"RightButton", true},
-    {"LeftButton", true, true}, {"LeftButton", true, false, true} }) do
-    ClickHealth(unpack(gesture))
-    Tick(0.1)
-    assert(not named.ApogeeTankEffectsWindow, "an unintended gesture opened settings")
-end
-lockdown = true
-ClickHealth("LeftButton", true)
-Tick(0.1)
-assert(not named.ApogeeTankEffectsWindow, "lockdown click opened settings")
-lockdown = false
-ClickHealth("LeftButton", true)
--- Combat can begin between the click and its coalesced UI update.
-combat = true
-Event("PLAYER_REGEN_DISABLED")
-Tick(0.1)
-assert(not named.ApogeeTankEffectsWindow, "queued opening survived combat entry")
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-Tick(0.1)
-assert(not named.ApogeeTankEffectsWindow, "combat click reopened settings after combat")
-ClickHealth("LeftButton", true)
-Tick(0.1)
-local picker = named.ApogeeTankEffectsWindow
-assert(picker and picker:IsShown() and picker.width == 680 and picker.height == 312)
-for _, item in ipairs(frames) do
-    assert(not (item.parent == picker and item.kind == "FontString" and item.text ~= "Cooldowns" and item.text ~= "Debuffs"),
-        "picker regained a title, explanation, count or footer")
-end
-local sunderCheck, shoutCheck
-for _, item in ipairs(frames) do
-    if item.kind == "CheckButton" and item.label then
-        if item.label.text == "Sunder Armor" then sunderCheck = item end
-        if item.label.text == "Demoralizing Shout" then shoutCheck = item end
-    end
-end
-assert(sunderCheck and not shoutCheck, "picker did not limit discovery to the player's debuffs")
-assert(sunderCheck.hover and sunderCheck.hover.mouse)
-sunderCheck.hover.scripts.OnEnter(sunderCheck.hover)
-assert(GameTooltip.shown and GameTooltip.spellId, "spell icon/name hover did not show a native tooltip")
-sunderCheck.hover.scripts.OnLeave()
-assert(not GameTooltip.shown)
-
-assert(sunderCheck:GetChecked(), "automatically watched row was not checked")
-assert(#ApogeeTankEffectsDB.watched == 1 and ApogeeTankEffectsDB.watched[1].spellId == 7386,
-    "picker selected the wrong captured row")
-combat = true
-Event("PLAYER_REGEN_DISABLED")
-Tick(0.1)
-assert(not picker:IsShown() and not healthBar.mouse and not GameTooltip.shown,
-    "combat entry did not close the picker and its health-bar hint")
-sunderCheck:SetChecked(false)
-sunderCheck.scripts.OnClick(sunderCheck)
-assert(#ApogeeTankEffectsDB.watched == 1 and sunderCheck:GetChecked(),
-    "a late checkbox callback changed settings in combat")
-local function MissingIcons(enemyRow)
-    local visible = {}
-    for _, item in ipairs(frames) do
-        if item.parent == (enemyRow or row)
-            and item.texture and item.width == 18 and item:IsShown() then
-            visible[#visible + 1] = item
-        end
-    end
-    return visible
-end
-assert(#MissingIcons() == 0, "present selected aura showed a reminder")
-for _, caster in ipairs({ "party1", "pet", "unknown" }) do
-    sunderSource = caster
-    Event("UNIT_AURA", "nameplate1")
-    Tick(0.1)
-    assert(#MissingIcons() == 1, "foreign or unknown application cleared the reminder")
-end
-sunderSource = nil
-Event("UNIT_AURA", "target")
-Tick(0.1)
-assert(#MissingIcons() == 1, "missing caster cleared the reminder")
-sunderSource = "targettarget"
-Event("UNIT_AURA", "target")
-Tick(0.1)
-assert(#MissingIcons() == 0, "player alias was not recognized as the owner")
-sunderSource = "player"
-hasSunder = false
-Event("UNIT_AURA", "nameplate1")
-Tick(0.1)
-assert(#MissingIcons() == 1 and MissingIcons()[1].texture.texture == 10,
-    "selected missing effect did not show its learned icon")
-assert(not MissingIcons()[1].mouse and not MissingIcons()[1].scripts.OnEnter,
-    "normal HUD reminder still has a tooltip")
-assert(MissingIcons()[1].points[1][1] == "RIGHT"
-    and MissingIcons()[1].points[1][2] == row.controlBar
-    and MissingIcons()[1].points[1][3] == "LEFT"
-    and MissingIcons()[1].points[1][4] == -5 and MissingIcons()[1].points[1][5] == 0,
-    "missing effect is not beside the threat meter")
-assert(not row.debuffIcons[1]:IsShown(), "missing effect still showed on the applied side")
-aurasAvailable = false
-Event("UNIT_AURA", "target")
-Tick(0.1)
-assert(#MissingIcons() == 0, "unavailable auras were treated as absent")
-aurasAvailable = true
-Event("UNIT_AURA", "target")
-Tick(0.1)
-assert(#MissingIcons() == 1)
-tokens.target.hostile = false
-Event("UNIT_FACTION", "target")
-Tick(0.1)
-assert(#MissingIcons() == 0, "friendly target showed a missing-effect reminder")
-tokens.target.hostile = true
-tokens.target.dead = true
-Event("UNIT_FLAGS", "target")
-Tick(0.1)
-assert(#MissingIcons() == 0, "dead target showed a missing-effect reminder")
-tokens.target.dead = false
-hasSunder = true
-Event("PLAYER_TARGET_CHANGED")
-Tick(0.1)
-assert(#MissingIcons() == 0)
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-ClickHealth("LeftButton", true)
-Tick(0.1)
-for _, item in ipairs(frames) do
-    if item.kind == "CheckButton" and item.label and item.label.text == "Sunder Armor" then
-        item:SetChecked(false); item.scripts.OnClick(item); break
-    end
-end
-Tick(0.1)
-assert(#ApogeeTankEffectsDB.watched == 0, "unchecking did not remove saved choice")
-assert(#ApogeeTankEffectsDB.ignored == 1, "unchecked choice was not persisted")
-combat = true
-Event("PLAYER_REGEN_DISABLED")
-Event("UNIT_AURA", "target")
-Tick(0.1)
-hasSunder = false
-Event("UNIT_AURA", "target")
-Tick(0.1)
-assert(#ApogeeTankEffectsDB.watched == 0 and #MissingIcons() == 0,
-    "unchecked effect was automatically re-enabled or still reminded")
--- Re-enable through the actual checkbox, then exercise per-enemy reminder lanes.
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-ClickHealth("LeftButton", true)
-Tick(0.1)
-for _, item in ipairs(frames) do
-    if item.kind == "CheckButton" and item.label and item.label.text == "Sunder Armor" then
-        item:SetChecked(true); item.scripts.OnClick(item); break
-    end
-end
-Tick(0.1)
-combat = true
-Event("PLAYER_REGEN_DISABLED")
-Tick(0.1)
-assert(#MissingIcons() == 1 and #ApogeeTankEffectsDB.ignored == 0)
-local clear
-for _, item in ipairs(frames) do
-    if item.name == "ApogeeTankDebuffsClear" then clear = item end
-end
-assert(clear, "compact picker has no Clear All button")
-clear.scripts.OnClick(clear)
-assert(#ApogeeTankEffectsDB.watched == 1, "Clear All changed saved choices in combat")
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-ClickHealth("LeftButton", true)
-Tick(0.1)
-local savedBeforeClear = ApogeeTankEffectsDB
-Event("UNIT_AURA", "target") -- Deliberately queue a refresh before clearing.
-clear.scripts.OnClick(clear)
-assert(#ApogeeTankEffectsDB.watched > 0, "first clear click erased selections")
-named.ApogeeTankDebuffsConfirmClear.scripts.OnClick()
-Tick(0.1)
-assert(ApogeeTankEffectsDB == savedBeforeClear and #ApogeeTankEffectsDB.watched == 0
-    and #ApogeeTankEffectsDB.ignored == 0,
-    "clear failed, detached persistence, or rediscovered the unchanged target")
-hasSunder = true
-ClickHealth("LeftButton", true)
-Tick(0.1)
-ClickHealth("LeftButton", true)
-Tick(0.1)
-assert(#ApogeeTankEffectsDB.watched == 0, "opening the cleared list relearned unchanged auras")
-Event("UNIT_AURA", "target")
-Tick(0.1)
-assert(#ApogeeTankEffectsDB.watched == 1, "learning did not resume after Clear All")
-combat = true
-Event("PLAYER_REGEN_DISABLED")
-Tick(0.1)
-assert(#MissingIcons() == 0 and row.debuffIcons[1]:IsShown(),
-    "applying the effect did not move it from missing-left to applied-right")
-
-tokens.nameplate2 = { guid = "enemy2", hostile = true, health = 50, maximum = 100, marker = 8 }
-tokens.nameplate2target = tokens.player
-Event("NAME_PLATE_UNIT_ADDED", "nameplate2")
-Tick(0.1)
-local secondRow
-for _, enemyRow in ipairs(addon.ThreatHud.GetEnemyRows()) do
-    if enemyRow.guid == "enemy2" then secondRow = enemyRow.anchor end
-end
-assert(secondRow and #MissingIcons(secondRow) == 1 and #MissingIcons(row) == 0,
-    "two enemies did not have independent coverage")
-assert(secondRow.marker:IsShown() and secondRow.marker.points[1][1] == "LEFT"
-    and secondRow.marker.points[1][2] == secondRow
-    and secondRow.marker.points[1][3] == "RIGHT" and secondRow.marker.points[1][4] == 2,
-    "raid marker did not reserve the selection gutter")
-enemy2Auras = { { sourceUnit = "player", spellId = 7386, name = "Sunder Armor", icon = 10 } }
-Event("UNIT_AURA", "nameplate2")
-Tick(0.1)
-assert(#MissingIcons(secondRow) == 0 and secondRow.debuffIcons[1]:IsShown(),
-    "off-target application did not update both sides of its own row")
-
-extraTargetAura = { sourceUnit = "player", spellId = 99999, name = "Overflow effect", icon = 999 }
-enemy2Auras = {}
-for id = 100, 106 do
-    enemy2Auras[#enemy2Auras + 1] = { sourceUnit = "player", spellId = id, name = "Other " .. id }
-end
-enemy2Auras[#enemy2Auras + 1] = extraTargetAura
-Event("UNIT_AURA", "target")
-Event("UNIT_AURA", "nameplate2")
-Tick(0.1)
-assert(#MissingIcons(secondRow) == 1 and MissingIcons(secondRow)[1].texture.texture == 10,
-    "an applied effect hidden in right-side overflow was reported missing")
-assert(secondRow.debuffOverflow:IsShown())
-tokens.nameplate2.dead = true
-Event("UNIT_HEALTH", "nameplate2")
-Tick(0.1)
-assert(#MissingIcons(secondRow) == 0, "removed enemy retained its missing-effect lane")
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-Tick(0.1)
-assert(#MissingIcons(row) == 0 and #MissingIcons(secondRow) == 0,
-    "missing-effect lanes survived combat exit after their enemy rows disappeared")
-
-local extraModel = addon.EffectsModel.Create(nil)
-local many = {}
-for id = 1, 13 do many[id] = { spellId = id, name = "Extra " .. id, icon = id } end
-extraModel.Observe(many)
-local extraView = addon.EffectsView.Create(extraModel, function() end)
-extraView.Render({ { anchor = row, guid = "test", missing = extraModel.GetMissing({}, true) } })
-local overflow
-for _, item in ipairs(frames) do
-    if item.parent == row and item.label and item.label.text == "+9" then overflow = item end
-end
-assert(overflow and overflow:IsShown() and overflow.points[1][1] == "RIGHT",
-    "long reminder list did not use a single-row overflow indicator")
-assert(not overflow.mouse and not overflow.scripts.OnEnter, "HUD overflow still has a tooltip")
-extraView.Render({ { anchor = row, guid = "replacement", missing = {} } })
-assert(#MissingIcons(row) == 0 and not overflow:IsShown(),
-    "recycled enemy row retained the previous enemy's reminders")
-print("Standalone runtime, UI geometry, client gate, aura and lifecycle tests passed")
-
--- The picker owns a transient animated demo and can be moved without saving layout.
-ClickHealth("LeftButton", true)
-Tick(0.1)
-assert(picker:IsShown() and picker.movable and picker.clamped)
-picker.scripts.OnDragStart()
-assert(picker.moving, "picker did not start dragging")
-picker.scripts.OnDragStop()
-assert(not picker.moving, "picker did not stop dragging")
-local demoRow = addon.ThreatHud.GetRows()[1]
-assert(demoRow.enemy.name == "Demo enemy 1" and demoRow.enemy.demoMissing,
-    "picker did not open a clearly labeled demo")
-assert(demoRow.enemy.cast and addon.ThreatHud.GetCastDisplay(demoRow.enemy, now),
-    "demo enemy has no active cast preview")
-local savedCount = #ApogeeTankEffectsDB.watched
-local oldControl = demoRow.enemy.control
-now = now + 4
-Tick(0.1)
-assert(demoRow.enemy.control ~= oldControl, "demo did not animate")
-assert(#ApogeeTankEffectsDB.watched == savedCount, "demo changed learned effects")
-picker:Hide() -- Includes Escape and close-button behavior in the real client.
-assert(not demoRow:IsShown(), "closing picker left demo rows visible")
-ClickHealth("LeftButton", true)
-Tick(0.1)
-combat = true
-Event("PLAYER_REGEN_DISABLED")
-Tick(0.1)
-assert(not picker:IsShown() and addon.ThreatHud.GetRows()[1].enemy.demoMissing == nil,
-    "combat retained synthetic enemies")
-print("Draggable picker and isolated animated demo tests passed")
-
--- Cooldown learning reaches the real player-bar view and shared picker.
 C_Spell = {
     GetSpellInfo = function(id) return { name = "Test cooldown", iconID = 4321 } end,
-    GetSpellCooldown = function() return { startTime = now, duration = 30,
+    GetSpellCooldown = function() return { startTime = math.floor(now), duration = 30,
         isEnabled = true, isActive = true, isOnGCD = false, modRate = 1 } end,
     GetSpellCharges = function() return nil end,
 }
-for _, f in ipairs(frames) do
-    if f.events.UNIT_SPELLCAST_SUCCEEDED then
-        f.scripts.OnEvent(f, "UNIT_SPELLCAST_SUCCEEDED", "player", "cast", 9876)
-    end
-end
-Event("SPELL_UPDATE_COOLDOWN")
-assert(#ApogeeTankCooldownsDB.watched == 1, "cooldown was not learned in composed addon")
-local cooldownIcon
-for _, f in ipairs(frames) do
-    if f.parent == addon.ThreatHud.GetPlayerStatusAnchor() and f.image and f.image.texture == 4321 then cooldownIcon = f end
-end
-assert(cooldownIcon and cooldownIcon:IsShown() and cooldownIcon.label.text == "30",
-    "cooldown countdown did not appear beside the player bar")
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-ClickHealth("LeftButton", true)
-Tick(0.1)
-assert(named.ApogeeTankDebuffsClear and named.ApogeeTankCooldownsClear,
-    "picker does not expose both columns")
-local effectCount = #ApogeeTankEffectsDB.watched
-named.ApogeeTankCooldownsClear.scripts.OnClick()
-assert(#ApogeeTankCooldownsDB.watched == 1, "first click cleared cooldowns")
-named.ApogeeTankCooldownsConfirmClear.scripts.OnClick()
-assert(#ApogeeTankCooldownsDB.watched == 0 and #ApogeeTankEffectsDB.watched == effectCount,
-    "cooldown clear changed debuff selections")
-assert(not cooldownIcon:IsShown(), "cleared cooldown icon remained visible")
-picker:Hide()
-print("Cooldown HUD and independent picker clear integration passed")
-
-ClickHealth("LeftButton", true)
-Tick(0.1)
-named.ApogeeTankCooldownsClear.scripts.OnClick()
-assert(named.ApogeeTankCooldownsConfirmClear:IsShown())
-picker:Hide()
-assert(not named.ApogeeTankCooldownsConfirmClear:IsShown(),
-    "closing the picker retained an armed reset")
-
--- Repeated identical cooldown frames should not resend texture/text/alpha writes.
-local writes = 0
-for _, method in ipairs({ "SetTexture", "SetText", "SetAlpha" }) do
-    local original = methods[method]
-    methods[method] = function(self, ...)
-        writes = writes + 1
-        return original(self, ...)
-    end
-end
-local perfView = addon.CooldownView.Create(function() return healthBar end)
-local perfEntries = {{ spellId = 99, icon = 123, watched = true }}
-local perfStates = {[99] = {start = 100, duration = 30, enabled = true}}
-perfView.Render(perfEntries, perfStates, 100)
-writes = 0
-for i = 1, 100 do perfView.Render(perfEntries, perfStates, 100) end
-assert(writes == 0, "unchanged countdown frames rewrote texture/text/alpha")
-perfView.Render(perfEntries, perfStates, 101)
-assert(writes == 1, "one elapsed second should update only the countdown text")
-print("Cooldown render performance: 100 unchanged frames produced zero content writes")
-
-local activeStance = 1
-function GetNumShapeshiftForms() return 2 end
-function GetShapeshiftFormInfo(index) return 8000 + index, index == activeStance, true, 9000 + index end
-Event("UPDATE_SHAPESHIFT_FORM")
-local stanceIcon
-for _, f in ipairs(frames) do
-    if f.parent == addon.ThreatHud.GetPlayerStatusAnchor()
-        and f.image and f.image.texture == 8001 then stanceIcon = f end
-end
-assert(stanceIcon and stanceIcon:IsShown() and stanceIcon.points[1][1] == "RIGHT"
-    and stanceIcon.points[1][3] == "LEFT" and stanceIcon.points[1][4] == -1
-    and stanceIcon.points[1][5] == 0 and stanceIcon.width == 18 and stanceIcon.height == 18
-    and not stanceIcon.mouse, "stance slot must retain player-cluster alignment")
-assert(cooldownIcon.points[1][2] == stanceIcon.points[1][2]
-    and cooldownIcon.points[1][1] == "LEFT" and cooldownIcon.points[1][3] == "RIGHT"
-    and cooldownIcon.points[1][4] == -stanceIcon.points[1][4]
-    and cooldownIcon.points[1][5] == stanceIcon.points[1][5],
-    "cooldowns and stance must sit symmetrically beside the same status cluster")
-local spacingAnchor = Frame("Frame")
-local spacingView = addon.CooldownView.Create(function() return spacingAnchor end)
-local spacingEntries = {}
-for i = 1, 7 do spacingEntries[i] = { spellId = i, icon = i, watched = true } end
-spacingView.Render(spacingEntries, {}, 0)
-local visibleSlots = 0
-for _, item in ipairs(frames) do
-    if item.parent == spacingAnchor then
-        if item.image then
-            visibleSlots = visibleSlots + 1
-            assert(item.width == 18 and item.points[1][4] == 1 + (item.image.texture - 1) * 20,
-                "cooldown spacing between slots changed")
-        elseif item.kind == "FontString" then
-            assert(item.text == "+1" and item.points[1][4] == 123,
-                "overflow must move with cooldowns, retaining its 4px final-slot gap")
-        end
-    end
-end
-assert(visibleSlots == 6, "cooldown visible limit changed")
-assert(stanceIcon.image.points[1][1] == "TOPLEFT"
-    and stanceIcon.image.points[1][4] == 1 and stanceIcon.image.points[1][5] == -1
-    and stanceIcon.image.points[2][1] == "BOTTOMRIGHT"
-    and stanceIcon.image.points[2][4] == -1 and stanceIcon.image.points[2][5] == 1
-    and stanceIcon.image.texCoord[1] == 0.07 and stanceIcon.image.texCoord[2] == 0.93,
-    "stance artwork must use the same inset and crop as cooldown slots")
-activeStance = 2
-Event("UPDATE_SHAPESHIFT_FORM")
-assert(stanceIcon.image.texture == 8002, "stance change did not update icon")
-activeStance = 0
-Event("UPDATE_SHAPESHIFT_FORM")
-assert(not stanceIcon:IsShown(), "no active stance left an old icon visible")
-print("Active stance icon display and switching passed")
-
-combat = false
-Event("PLAYER_REGEN_ENABLED")
-Tick(0.1)
-local redraws, scans = 0, 0
-local originalHealth = addon.UnitAPI.GetHealth
-addon.UnitAPI.GetHealth = function(unit)
-    if unit == "player" then redraws = redraws + 1 end
-    return originalHealth(unit)
-end
-local originalAuras = addon.Auras.ReadPlayerHarmful
-addon.Auras.ReadPlayerHarmful = function(unit)
-    scans = scans + 1
-    return originalAuras(unit)
-end
-for i = 1, 100 do
-    Event("UNIT_POWER_FREQUENT", "player")
-    Event("UNIT_HEALTH", "target")
-end
-assert(redraws == 0 and scans == 0, "event burst performed immediate redraws or scans")
-Tick(0.1)
-assert(redraws == 1 and scans == 0, "health/power burst was not coalesced")
-assert(not driver:IsShown(), "idle threat driver kept running")
-print("100 health/power event pairs: one player redraw, zero aura scans, idle driver asleep")
-
--- Full beta TOC startup and transitions use the same UI mock as Era.
+-- Forever TOC startup and transitions.
 frames, named, driver = {}, {}, nil
 interface, WOW_PROJECT_ID = 16001, 1
-function GetBuildInfo() return "1.60.1", "69913", "", interface end
+function GetBuildInfo() return "1.60.1", "69977", "", interface end
 local secretValue = {}
 function issecretvalue(value) return rawequal(value, secretValue) end
 function canaccessvalue(value) return not issecretvalue(value) end
@@ -747,26 +218,10 @@ function methods:SetSpriteSheetCell(cell, rows, columns)
     assert(rows == 4 and columns == 4, "wrong raid marker sheet dimensions")
     self.spriteCell = cell
 end
-function CreateColor(...) return {...} end
-Enum = { LuaCurveType = { Step = 1 } }
-C_CurveUtil = { CreateColorCurve = function()
-    return {
-        SetType = function() end,
-        AddPoint = function() end,
-        EvaluateUnpacked = function() error("Secret arguments require untainted execution") end,
-    }
-end }
-local failHealthColor = false
-local colorQueries = 0
-function UnitHealthPercent(unit, predicted, curve)
-    assert(unit == "player" and predicted == true and curve, "color curve must be passed to unit API")
-    colorQueries = colorQueries + 1
-    if failHealthColor then error("unavailable color") end
-    return { GetRGBA = function() return 0.28, 0.74, 0.46, 1 end }
-end
 local preservedDebuffs = { version = 999, choices = { [7386] = false } }
 ApogeeTankEffectsDB, ApogeeTankCooldownsDB = preservedDebuffs, nil
 local betaAuraReads = 0
+C_UnitAuras = {}
 C_UnitAuras.GetAuraDataByIndex = function()
     betaAuraReads = betaAuraReads + 1
     error("Forever debuffs are disabled")
@@ -774,7 +229,7 @@ end
 tokens.player.health = secretValue
 tokens.target.health = secretValue
 -- Untargeted enemies must never populate Forever rows, including login/zoning.
-tokens.nameplate2.dead = false
+tokens.nameplate2 = { guid = "enemy2", hostile = true, health = 100, maximum = 100 }
 C_NamePlate.GetNamePlates = function()
     return {
         { unitToken = "nameplate1", GetUnit = function(self) return self.unitToken end },
@@ -796,14 +251,9 @@ local nativeBars = {}
 for _, item in ipairs(frames) do
     if item.kind == "StatusBar" then nativeBars[#nativeBars + 1] = item end
 end
-assert(#nativeBars >= 2 and rawequal(nativeBars[1].barValue, secretValue),
-    "beta player health failed native secret delivery")
-assert(colorQueries > 0 and nativeBars[1].barColor[1] == 0.28,
-    "native player health color was not applied")
-assert(nativeBars[1].mouse == false, "native fill intercepts picker clicks")
-local betaPlayerBar = nativeBars[1].parent
-assert(betaPlayerBar:IsShown() and betaPlayerBar.scripts.OnMouseUp and betaPlayerBar.mouse,
-    "beta health bar lost picker input")
+assert(#nativeBars == 1 and rawequal(nativeBars[1].barValue, secretValue),
+    "only native enemy health should remain")
+assert(nativeBars[1].mouse == false, "native fill intercepts marking clicks")
 -- A selected hostile target is visible before combat even without threat.
 local originalPrecombatThreat = UnitDetailedThreatSituation
 function UnitDetailedThreatSituation() return nil end
@@ -840,9 +290,24 @@ assert(markButton.width == precombatRow.controlBar.width and markButton.height =
     "secure overlay does not align with the scaled target meter")
 assert(precombatRow.points[1][3] == "TOPLEFT" and precombatRow.points[1][5] == -24
     and precombatRow.points[2][5] == -24 and precombatRow.height == 24,
-    "Forever enemy row must start below the player health/power cluster")
+    "Forever enemy row must start below the fixed spell strip")
 assert(addon.ThreatHud.GetFrame().points[1][5] * markButton.scale == 55
-    and addon.ThreatHud.GetPlayerStatusAnchor().points[1][5] == 0,
+    and addon.ThreatHud.GetStanceAnchor().points[1][1] == "RIGHT"
+    and addon.ThreatHud.GetStanceAnchor().points[1][2] == precombatRow.controlBar
+    and addon.ThreatHud.GetStanceAnchor().points[1][3] == "LEFT"
+    and addon.ThreatHud.GetStanceAnchor().points[1][4] == -2
+    and addon.ThreatHud.GetStanceAnchor().height == addon.Style.iconSize
+    and precombatRow.marker.height == addon.Style.iconSize
+    and precombatRow.marker.points[1][4] == 2
+    and addon.ThreatHud.GetStanceGeometry().size == addon.Style.iconSize
+    and addon.ThreatHud.GetStanceGeometry().x == 57.5
+    and addon.ThreatHud.GetStanceGeometry().y == -8.5
+    and addon.ThreatHud.GetStanceAnchor().points[1][5] == -3
+    and precombatRow.marker.points[1][5] == -3
+    and addon.Style.iconSize == precombatRow.controlBar.height + precombatRow.statusBar.height + 1
+    and addon.ThreatHud.GetCooldownAnchor().points[1][2] == addon.ThreatHud.GetFrame()
+    and addon.ThreatHud.GetCooldownAnchor().points[1][4] == 265
+    and addon.ThreatHud.GetGuidanceAnchor().points[1][5] == -1,
     "moving enemy row moved player anchor")
 assert(markButton.points[1][5] == addon.ThreatHud.GetFrame().points[1][5]
     + precombatRow.points[2][5] + precombatRow.controlBar.points[1][5],
@@ -850,8 +315,11 @@ assert(markButton.points[1][5] == addon.ThreatHud.GetFrame().points[1][5]
 
 -- Optional integration input is explicit and fails closed if supplied but invalid.
 -- No client code is redistributed and no restricted compiler is injected.
-local exportRoot = os.getenv("APOGEE_FOREVER_EXPORT")
-if exportRoot and exportRoot ~= "" then
+local function VerifyNative(exportRoot, testButton)
+    if not exportRoot or exportRoot == "" then
+        print("SKIP native secure integration: supply matching " .. "Forever" .. " export")
+        return
+    end
     local secureExport = assert(io.open(exportRoot .. "/Blizzard_FrameXML/SecureTemplates.lua", "r"))
     local source = secureExport:read("*a"); secureExport:close()
     local restrictedExport = assert(io.open(exportRoot .. "/Blizzard_RestrictedAddOnEnvironment/RestrictedExecution.lua", "r"))
@@ -875,14 +343,14 @@ if exportRoot and exportRoot ~= "" then
         if value == "" then return nil end
         return value
     end
-    local calls = {}
+    local calls, currentMarker = {}, nil
     local environment = {
         type = type, tonumber = tonumber, PRESS_TYPE_DOWN = 1, PRESS_TYPE_HOLD_RELEASE = 3,
         SecureButton_GetModifiedUnit = function(self) return self.attributes.unit end,
         SecureButton_GetModifiedAttribute = Attribute,
         UnitCanAttack = UnitCanAttack, UnitCanAssist = function(_, unit) return tokens[unit] and not tokens[unit].hostile end,
-        UnitExists = UnitExists, GetRaidTargetIndex = function() return nil end,
-        SetRaidTarget = function(unit, id) assert(unit == "target"); calls[#calls + 1] = id end,
+        UnitExists = UnitExists, GetRaidTargetIndex = function() return currentMarker end,
+        SetRaidTarget = function(unit, id) assert(unit == "target"); calls[#calls + 1] = id; currentMarker = id end,
     }
     assert(environment.loadstring_untainted == nil and environment.SecureCmdOptionParse == nil)
     local compile = assert(loadstring(resolverSource .. "\nreturn GetConvertedButtonUnitAndActionType"))
@@ -892,10 +360,11 @@ if exportRoot and exportRoot ~= "" then
     local act = compile()
     local function Press(button, modifiers)
         prefix = modifiers or ""
-        local mapped, unit, kind = resolve(markButton, button, 1)
-        if kind == "raidtarget" then act(markButton, unit, mapped) end
+        local mapped, unit, kind = resolve(testButton, button, 1)
+        if kind == "raidtarget" then act(testButton, unit, mapped) end
     end
-    Press("LeftButton"); Press("RightButton"); Press("LeftButton", "shift-")
+    Press("LeftButton"); Press("LeftButton") -- set must not toggle off
+    Press("RightButton"); Press("LeftButton", "shift-")
     assert(#calls == 3 and calls[1] == 8 and calls[2] == 7 and calls[3] == 5,
         "real exported secure dispatch rejected mappings")
     Press("RightButton", "shift-"); Press("LeftButton", "ctrl-")
@@ -905,22 +374,21 @@ if exportRoot and exportRoot ~= "" then
     tokens.target = nil; Press("LeftButton")
     tokens.target = targetBefore
     assert(#calls == 3, "real secure resolver admitted unsupported/friendly/empty target")
-    print("Matching exported secure resolver/actions passed without restricted compiler or snippets")
-else
-    print("SKIP native secure integration: set APOGEE_FOREVER_EXPORT to the matching export AddOns directory")
+    print("Forever" .. " exported secure resolver/actions and repeated-set semantics passed")
 end
+VerifyNative(os.getenv("APOGEE_FOREVER_EXPORT"), markButton)
 local clickedTarget = tokens.target
 tokens.target = tokens.player
 Event("PLAYER_TARGET_CHANGED")
-assert(#addon.ThreatHud.GetEnemyRows() == 0, "friendly precombat target shown")
+assert(addon.ThreatObserver.GetSnapshot().total == 0, "friendly precombat target shown")
 tokens.target = clickedTarget
 tokens.target.dead = true
 Event("PLAYER_TARGET_CHANGED")
-assert(#addon.ThreatHud.GetEnemyRows() == 0, "dead precombat target shown")
+assert(addon.ThreatObserver.GetSnapshot().total == 0, "dead precombat target shown")
 tokens.target.dead = false
 tokens.target = nil
 Event("PLAYER_TARGET_CHANGED")
-assert(#addon.ThreatHud.GetEnemyRows() == 0, "cleared precombat target remained visible")
+assert(addon.ThreatObserver.GetSnapshot().total == 0, "cleared precombat target remained visible")
 tokens.target = clickedTarget
 function SetRaidTarget() error("addon must never call protected marker API") end
 UnitDetailedThreatSituation = originalPrecombatThreat
@@ -938,7 +406,7 @@ assert(markerBackground and markerBackground:IsShown()
 local readableGUID = UnitGUID
 UnitGUID = function(unit) if unit == "target" then return secretValue end; return readableGUID(unit) end
 Event("PLAYER_TARGET_CHANGED")
-assert(#addon.ThreatHud.GetEnemyRows() == 0 and markerBackground:IsShown(),
+assert(addon.ThreatObserver.GetSnapshot().total == 0 and markerBackground:IsShown(),
     "restricted identity removed the marking affordance or invented an enemy")
 UnitGUID = readableGUID
 Event("PLAYER_TARGET_CHANGED")
@@ -979,9 +447,9 @@ Tick(0.1)
 assert(markButton == named.ApogeeTankTargetMarkerButton,
     "combat refresh recreated secure button")
 lockdown = false
-assert(not named.ApogeeTankEffectsWindow, "enemy marking opened player picker")
+assert(not named.ApogeeTankPickerWindow, "enemy marking opened player picker")
 local firstTarget = tokens.target
-held = false -- A lost enemy must not linger through the two-second Era grace period.
+held = false -- A lost enemy must not linger after changing targets.
 Event("UNIT_THREAT_LIST_UPDATE", "target")
 Tick(0.1)
 tokens.focus, tokens.mouseover, tokens.party1target = firstTarget, firstTarget, firstTarget
@@ -992,8 +460,8 @@ local switched = addon.ThreatObserver.GetSnapshot()
 assert(switched.total == 1 and switched.enemies[1].guid == tokens.target.guid
     and switched.enemies[1].unit == "target" and switched.enemies[1].raidMarker == 8,
     "beta target switch retained old sources or lost marker")
-assert(#addon.ThreatHud.GetEnemyRows() == 1
-    and addon.ThreatHud.GetEnemyRows()[1].guid == tokens.target.guid,
+assert(addon.ThreatObserver.GetSnapshot().total == 1
+    and addon.ThreatHud.GetRows()[1].enemy.guid == tokens.target.guid,
     "row contract did not switch immediately")
 local betaEnemyRow
 for _, item in ipairs(addon.ThreatHud.GetRows()) do
@@ -1001,11 +469,8 @@ for _, item in ipairs(addon.ThreatHud.GetRows()) do
 end
 assert(betaEnemyRow.marker:IsShown() and betaEnemyRow.marker.spriteCell == 8,
     "readable beta marker did not render")
-local nameAnchor = betaEnemyRow.name.points[1]
-assert(betaEnemyRow.name:IsShown() and nameAnchor[1] == "TOP"
-    and nameAnchor[2] == betaEnemyRow.statusBar and nameAnchor[3] == "BOTTOM"
-    and nameAnchor[4] == 0 and nameAnchor[5] == -2,
-    "Forever enemy name must be centered beneath the meter's health strip")
+assert(betaEnemyRow.name == nil, "mob name presentation must not be created")
+
 tokens.target.marker = secretValue
 Event("RAID_TARGET_UPDATE")
 Tick(0.1)
@@ -1037,7 +502,7 @@ assert(addon.ThreatObserver.GetSnapshot().total == 1, "nameplate event added a b
 tokens.target = nil
 Event("PLAYER_TARGET_CHANGED")
 assert(addon.ThreatObserver.GetSnapshot().total == 0
-    and #addon.ThreatHud.GetEnemyRows() == 0, "target clear retained rows")
+    and addon.ThreatObserver.GetSnapshot().total == 0, "target clear retained rows")
 assert(not betaEnemyRow:IsShown(), "target clear left marker row visible")
 tokens.target = tokens.player
 Event("PLAYER_TARGET_CHANGED")
@@ -1073,32 +538,20 @@ Event("PLAYER_REGEN_ENABLED")
 tokens.target = nil
 Event("PLAYER_TARGET_CHANGED")
 assert(addon.ThreatObserver.GetSnapshot().total == 0
-    and #addon.ThreatHud.GetEnemyRows() == 0, "idle target clear retained rows")
+    and addon.ThreatObserver.GetSnapshot().total == 0, "idle target clear retained rows")
 tokens.target = firstTarget
 Event("PLAYER_TARGET_CHANGED")
-assert(#addon.ThreatHud.GetEnemyRows() == 1, "idle hostile target did not appear")
-failHealthColor = true
-Event("UNIT_HEALTH", "player")
+assert(addon.ThreatObserver.GetSnapshot().total == 1, "idle hostile target did not appear")
+ClickMinimap("RightButton")
 Tick(0.1)
-assert(betaPlayerBar:IsShown() and nativeBars[1]:IsShown()
-    and nativeBars[1].barColor[1] == 0.7, "color failure hid health")
-local originalBetaHealth = UnitHealth
-function UnitHealth() error("temporarily unavailable") end
-Event("UNIT_HEALTH", "player")
+assert(not named.ApogeeTankPickerWindow, "right-click unexpectedly opened picker")
+ClickMinimap("LeftButton")
 Tick(0.1)
-assert(betaPlayerBar:IsShown() and betaPlayerBar.mouse and not nativeBars[1]:IsShown(),
-    "read failure lost picker input or retained stale health")
-shiftDown = true
-betaPlayerBar.scripts.OnMouseUp(betaPlayerBar, "RightButton")
-Tick(0.1)
-assert(not named.ApogeeTankEffectsWindow, "right-click unexpectedly opened picker")
-betaPlayerBar.scripts.OnMouseUp(betaPlayerBar, "LeftButton")
-Tick(0.1)
-local betaPicker = named.ApogeeTankEffectsWindow
+local betaPicker = named.ApogeeTankPickerWindow
 assert(betaPicker and betaPicker:IsShown() and betaPicker.width == 340
     and named.ApogeeTankCooldownsClear and not named.ApogeeTankDebuffsClear,
     "Forever picker is not cooldown-only")
-assert(#addon.ThreatHud.GetEnemyRows() == 1
+assert(addon.ThreatObserver.GetSnapshot().total == 1
     and addon.ThreatHud.GetRows()[1].enemy.demoMissing == nil, "Forever started a picker demo")
 for _, listener in ipairs(frames) do
     if listener.events.UNIT_SPELLCAST_SUCCEEDED then
@@ -1114,23 +567,20 @@ for _, item in ipairs(frames) do
         and item:GetChecked() then learnedWhileOpen = true end
 end
 assert(betaPicker:IsShown() and learnedWhileOpen, "open picker missed newly learned cooldown")
-UnitHealth = originalBetaHealth
-failHealthColor = false
-Event("UNIT_HEALTH", "player")
-Tick(0.1)
-assert(nativeBars[1]:IsShown() and nativeBars[1].barColor[1] == 0.28, "health/color failed to recover")
+Capture("Forever picker", frames, true)
 combat = true
 Event("PLAYER_REGEN_DISABLED")
 assert(not betaPicker:IsShown(), "beta combat left picker open")
-betaPlayerBar.scripts.OnMouseUp(betaPlayerBar, "LeftButton")
+ClickMinimap("LeftButton")
 Tick(0.1)
 assert(not betaPicker:IsShown(), "beta picker opened during combat")
 local betaCooldownIcon
 for _, item in ipairs(frames) do
-    if item.parent == addon.ThreatHud.GetPlayerStatusAnchor() and item.image
+    if item.parent == addon.ThreatHud.GetCooldownAnchor() and item.image
         and item.image.texture == 4321 then betaCooldownIcon = item end
 end
 assert(betaCooldownIcon and betaCooldownIcon:IsShown(), "Forever standalone cooldown is hidden")
+Capture("Forever combat", frames, false)
 -- Restricted numeric timers still have a native duration object. Reproduce the
 -- question-mark regression without ever inspecting that object's time values.
 local nativeDuration = setmetatable({}, {
@@ -1201,6 +651,7 @@ Event("SPELL_UPDATE_CHARGES")
 assert(betaCooldownIcon.label.text == "1" and betaCooldownIcon.cooldown.hideNumbers,
     "readable charge count was discarded or covered by countdown")
 C_Spell.GetSpellCharges = readableCharges
+nativeDuration = {} -- New timer payload; native setter rejects this update.
 rejectDuration = true
 Event("SPELL_UPDATE_COOLDOWN")
 assert(betaCooldownIcon.label.text == "?" and not betaCooldownIcon.cooldown:IsShown(),
@@ -1216,7 +667,7 @@ assert(not betaCooldownIcon.cooldown:IsShown() and betaCooldownIcon.label.text =
 
 
 for _, betaRow in ipairs(addon.ThreatHud.GetRows()) do
-    assert(#betaRow.debuffIcons == 0 and not betaRow.debuffOverflow,
+    assert(betaRow.debuffIcons == nil and not betaRow.debuffOverflow,
         "Forever created applied-debuff controls")
     if betaRow:IsShown() then
         assert(betaRow.enemy.playerAuras == nil, "Forever populated aura coverage")
@@ -1224,7 +675,7 @@ for _, betaRow in ipairs(addon.ThreatHud.GetRows()) do
 end
 combat = false
 Event("PLAYER_REGEN_ENABLED")
-betaPlayerBar.scripts.OnMouseUp(betaPlayerBar, "LeftButton")
+ClickMinimap("LeftButton")
 Tick(0.1)
 local betaChoice
 for _, item in ipairs(frames) do
@@ -1240,17 +691,20 @@ assert(#ApogeeTankCooldownsDB.watched == 1, "cooldown reselect failed")
 named.ApogeeTankCooldownsClear.scripts.OnClick()
 assert(named.ApogeeTankCooldownsConfirmClear:IsShown() and #ApogeeTankCooldownsDB.watched == 1,
     "clear did not require confirmation")
+betaChoice.hover.scripts.OnEnter(betaChoice.hover)
+assert(GameTooltip.shown, "picker spell tooltip failed to open")
 betaPicker:Hide()
+assert(not GameTooltip.shown, "closing picker left its spell tooltip visible")
 assert(not named.ApogeeTankCooldownsConfirmClear:IsShown(), "close retained clear confirmation")
 -- Combat must cancel an open that is queued but not yet rendered.
-betaPlayerBar.scripts.OnMouseUp(betaPlayerBar, "LeftButton")
+ClickMinimap("LeftButton")
 combat = true
 Event("PLAYER_REGEN_DISABLED")
 combat = false
 Event("PLAYER_REGEN_ENABLED")
 Tick(0.1)
 assert(not betaPicker:IsShown(), "combat retained pending picker open")
-betaPlayerBar.scripts.OnMouseUp(betaPlayerBar, "LeftButton")
+ClickMinimap("LeftButton")
 Tick(0.1)
 named.ApogeeTankCooldownsClear.scripts.OnClick()
 named.ApogeeTankCooldownsConfirmClear.scripts.OnClick()
@@ -1259,10 +713,120 @@ assert(#ApogeeTankCooldownsDB.watched == 0 and ApogeeTankEffectsDB == preservedD
 Event("UNIT_AURA", secretValue)
 Event("PLAYER_LEAVING_WORLD")
 assert(not betaPicker:IsShown(), "zoning left picker open")
+Event("PLAYER_TARGET_CHANGED")
+Event("UNIT_HEALTH", "target")
+Tick(0.2)
+assert(not named.ApogeeTankThreatHud:IsShown(), "late zoning events restored target presentation")
 assert(betaAuraReads == 0 and ApogeeTankEffectsDB == preservedDebuffs
     and preservedDebuffs.version == 999 and preservedDebuffs.choices[7386] == false,
     "beta debuff lifecycle ran or saved choices changed")
 print("Full beta TOC, target-only threat, disabled debuffs, cooldown-only picker and standalone cooldown and zoning smoke passed")
+
+-- Forever-only regression coverage for the retained spell strip and preview.
+Event("PLAYER_ENTERING_WORLD")
+local stableAnchor = addon.ThreatHud.GetCooldownAnchor()
+local anchorPoint = stableAnchor.points[1]
+local stanceIcon
+for _, item in ipairs(frames) do
+    if item.parent == addon.ThreatHud.GetStanceAnchor() and item.image then stanceIcon = item end
+end
+assert(stanceIcon, "stance slot not initialized")
+local stanceReads = 0
+local readStance = addon.GetActiveStanceIcon
+addon.GetActiveStanceIcon = function() stanceReads = stanceReads + 1; return readStance() end
+Event("PLAYER_LEAVING_WORLD")
+Event("UPDATE_SHAPESHIFT_FORM")
+assert(stanceReads == 0, "stance read APIs after world exit")
+Event("PLAYER_ENTERING_WORLD")
+assert(stanceReads == 1 and stanceIcon:IsShown(), "stance failed to recover after zoning")
+addon.GetActiveStanceIcon = readStance
+local activeForm = true
+function GetShapeshiftFormInfo() return 8001, activeForm, true, 9001 end
+for _, class in ipairs({ "WARRIOR", "DRUID", "PALADIN", "PRIEST" }) do
+    classToken, activeForm = class, class ~= "PRIEST"
+    Event("UPDATE_SHAPESHIFT_FORM")
+    assert(stanceIcon:IsShown() == activeForm, "form/aura visibility did not follow native state")
+    assert(stableAnchor.points[1] == anchorPoint, "empty stance slot shifted cooldowns")
+end
+activeForm = true
+Event("UPDATE_SHAPESHIFT_FORM")
+local cooldownEnd = now + 20
+local spellReads = 0
+C_Spell.GetSpellCooldown = function()
+    spellReads = spellReads + 1
+    return { startTime = cooldownEnd - 20, duration = 20, isEnabled = true,
+        isActive = true, isOnGCD = false, modRate = 1 }
+end
+for id = 2001, 2008 do
+    for _, listener in ipairs(frames) do
+        if listener.events.UNIT_SPELLCAST_SUCCEEDED then
+            listener.scripts.OnEvent(listener, "UNIT_SPELLCAST_SUCCEEDED", "player", "cast", id)
+        end
+    end
+    Event("SPELL_UPDATE_COOLDOWN")
+end
+local visibleIcons, overflow = 0, nil
+for _, item in ipairs(frames) do
+    if item.parent == stableAnchor and item.image and item:IsShown() then visibleIcons = visibleIcons + 1 end
+    if item.kind == "FontString" and item.text == "+2" and item:IsShown() then overflow = item end
+end
+assert(visibleIcons == 6 and overflow, "six cooldown slots or overflow failed")
+assert(#addon.ThreatHud.GetRows() == 1 and not addon.ThreatHud.ReconcileQueue,
+    "secondary enemy machinery survived")
+assert(not driver.events.NAME_PLATE_UNIT_ADDED and not driver.events.UNIT_AURA
+    and not driver.events.UNIT_POWER_FREQUENT, "obsolete observer subscriptions remain")
+local savedTarget = tokens.target
+tokens.target = nil
+Event("PLAYER_TARGET_CHANGED")
+local readsBefore = spellReads
+local countdownBefore = betaCooldownIcon.label.text
+Tick(1)
+assert(betaCooldownIcon:IsShown() and betaCooldownIcon.label.text ~= countdownBefore,
+    "targetless out-of-combat countdown froze")
+assert(spellReads == readsBefore, "animation polled spell API")
+Capture("Forever no target", frames, false)
+ClickMinimap("LeftButton")
+Tick(0.1)
+assert(betaPicker:IsShown(), "picker failed without target")
+local preview
+for _, item in ipairs(frames) do
+    if item.text == "Preview" and item.parent.parent == betaPicker then preview = item.parent end
+end
+assert(preview and preview:IsShown(), "isolated preview missing")
+local watched = #ApogeeTankCooldownsDB.watched
+local samplesBefore = sampleCount
+readsBefore = spellReads
+Tick(0.2)
+assert(#ApogeeTankCooldownsDB.watched == watched and spellReads == readsBefore
+    and sampleCount == samplesBefore, "preview observed or learned gameplay data")
+for _, item in ipairs(frames) do
+    local parent = item.parent
+    while parent do
+        if parent == preview then
+            assert(item.template ~= "SecureActionButtonTemplate" and not item.scripts.OnClick,
+                "preview created interactive marking surface")
+        end
+        parent = parent.parent
+    end
+end
+betaPicker.scripts.OnDragStart()
+assert(betaPicker.moving, "picker no longer draggable")
+combat = true
+Event("PLAYER_REGEN_DISABLED")
+assert(not betaPicker.moving and not preview:IsShown(), "combat left preview/drag active")
+combat = false
+Event("PLAYER_REGEN_ENABLED")
+Tick(0.1)
+assert(not betaPicker:IsShown(), "combat exit reopened picker")
+local paints = 0
+local previewUpdate = preview.scripts.OnUpdate
+preview.scripts.OnUpdate = function(...) paints = paints + 1; previewUpdate(...) end
+Tick(0.2)
+assert(paints == 0, "closed preview kept ticking")
+tokens.target = savedTarget
+Event("PLAYER_TARGET_CHANGED")
+assert(stableAnchor.points[1] == anchorPoint, "target changes or overflow moved strip")
+print("Forever class slots, six-icon overflow, targetless countdown and preview isolation passed")
 
 -- Reloading under lockdown must defer all protected setup until combat ends.
 frames, named, driver = {}, {}, nil

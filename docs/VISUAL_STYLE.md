@@ -1,3 +1,15 @@
+# Current Tank visual style
+
+Forever only. All live stance/aura, cooldown, seal and raid-marker icons use 22-unit squares, matching the 16-unit threat bar plus 1-unit gap and 5-unit target-health strip. Gaps are 2 units. Stance/aura sits left, marker right, both centered on the full stack. Cooldowns align with the threat bar left edge above; seals align below target health. No player bars or mob-name label remain.
+
+Held threat and target health use warm ivory (0.91, 0.89, 0.84); warning colors remain distinct and unknown threat is neutral. Paladin aura uses a shield with amber pulse only for a confirmed missing aura. Cooldowns desaturate while cooling down or unusable. Seal active-state styling is conditional on readable aura data; unknown state is neutral. Native spell tooltips accompany clickable spells.
+
+The minimap opens the cooldown picker with its isolated preview. All live appearance and taint acceptance remain in-game checks. The historical notes below record superseded iterations and are not current layout requirements.
+
+---
+
+> Current scope (2026-09-24): Forever only. Era, multi-enemy queues and enemy-effect tracking have been removed. Historical findings below are retained as records; current behavior is documented in README.md, ARCHITECTURE.md and HUD_REDESIGN.md.
+
 # Tank visual style
 
 `UI/Style.lua` owns the palette, icon crop/insets and typography used by the
@@ -53,3 +65,17 @@ missing reminders and HUD anchor remain fixed. Mock regression checks establish
 non-overlapping bounds and selection clearing/restoration; the previous rail
 placement fails the new geometry assertion. In game, verify a continuous blue
 rail beside both bars when targeting, including marked enemies and active casts.
+
+Held threat uses soft ivory (RGB 0.91, 0.89, 0.84) in both the live meter and picker preview. Unknown threat remains neutral gray, and warning/lost-threat colors remain distinct. Target health uses the same warm ivory in both native and ordinary rendering, including the picker preview.
+
+The target meter has no mob-name label in either the live HUD or picker preview. Threat, target health/cast information and marker placement remain fixed.
+
+Stance/form/aura, cooldown and raid-marker icons share the 22-unit icon size, matching the 16-unit threat bar, 1-unit gap and 5-unit target-health strip. Stance and marker are vertically centered on that full stack with matching 2-unit gaps on its left and right. The protected aura hit area follows the same size and center; warning borders stay inside the tile.
+
+Live cooldown icons show the native spell tooltip on hover, using the exact displayed spell identity. Leaving, hiding or rebinding the icon clears only its own tooltip. Picker previews remain non-interactive.
+
+Cooldown artwork desaturates while a confirmed cooldown is running, with no amber border or pulse. Ready spells and spells with an available charge retain color.
+
+Live cooldown icons support left-click native spell casting, including combat, using the current target. Visible slots and protected spell assignments stay fixed for the fight; new discoveries appear after combat. Synthetic previews remain non-interactive.
+
+Native spell usability and range also desaturate cooldown artwork when the client reports the spell cannot be used. Usability, target and native range events refresh this state; animation ticks do not poll spell APIs. Unavailable range data is not treated as out of range.

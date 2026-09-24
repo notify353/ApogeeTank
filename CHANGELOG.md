@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — Forever only
+
+- Use a threat-centered HUD without player bars or mob names, with warm ivory threat/health and consistent 22-unit icons.
+- Add independent native spell actions, offensive target acquisition, Paladin known-spell defaults and learned seal choices.
+- Add guarded seal activity/countdown presentation; combat aura readability remains limited.
+- Reduce cooldown/stance/seal update churn and preserve native restricted timer boundaries.
+- Record local consolidation and outstanding live acceptance in docs/CONSOLIDATION.md.
+
+- Remove Classic Era support, multi-enemy observation/queue and enemy-effect code.
+- Move cooldown-only configuration into Picker/ and preserve legacy effect data untouched.
+- Keep the threat-centered Forever HUD, native secure marking, cooldowns and minimap access.
+
+
 ## Unreleased
 
 - Recover unavailable aura reads on the next coalesced refresh while caching

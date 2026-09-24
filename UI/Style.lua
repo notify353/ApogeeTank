@@ -1,10 +1,12 @@
 local _, addon = ...
 -- Tank-local presentation only. Features retain placement and interaction policy.
 local Style = {
-    -- Ten 24px combat rows need a denser scale than a keybind grid.
-    iconSize = 18, iconGap = 2, iconInset = 1,
+    -- Fixed Forever HUD and picker dimensions.
+    iconSize = 22, iconGap = 2, iconInset = 1,
     pickerIconSize = 24, pickerIconInset = 2,
     headerHeight = 18, headerFontSize = 9, buttonHeight = 24,
+    heldThreatColor = { 0.91, 0.89, 0.84, 1 }, -- Soft ivory; warnings retain their colors.
+    enemyHealthColor = { 0.91, 0.89, 0.84, 1 },
     slotColor = { 0.06, 0.075, 0.1, 0.94 },
     headerColor = { 0.09, 0.12, 0.17, 0.8 },
     panelColor = { 0.035, 0.045, 0.065, 0.98 },
@@ -15,7 +17,7 @@ addon.Style = Style
 
 function Style.GetScale()
     -- Keybinds uses 36px slots; Tank's 18px slots inherit this at the roots.
-    return addon.Client == "foreverBeta" and 2 or 1
+    return 2
 end
 
 function Style.Background(parent, color)

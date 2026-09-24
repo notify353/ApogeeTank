@@ -1,4 +1,36 @@
+> Current scope (2026-09-24): Forever only. Era, multi-enemy queues and enemy-effect tracking have been removed. Historical findings below are retained as records; current behavior is documented in README.md, ARCHITECTURE.md and HUD_REDESIGN.md.
+
 # Verified client API reference
+
+## Current redesign boundaries (2026-09-24)
+
+The threat-centered redesign supersedes historical player-health picker access,
+player power/color rendering, and live-HUD demo descriptions below. See
+[redesign validation](HUD_REDESIGN.md) for current behavior.
+
+The refreshed Forever 1.60.1.69977 and Era 1.15.9.69722 exports contain the native
+SecureActionButtonTemplate hostility remapping and raidtarget set action. Both
+exported resolver/action implementations are executed in local tests. Protected
+visibility remains the native living-hostile-target condition; no snippet or
+addon SetRaidTarget call is introduced. Combat reload defers protected setup.
+
+Minimap geometry uses GetCursorPosition, GetEffectiveScale/GetCenter, native
+button drag events and math.atan2, consistent with local exported minimap callers.
+UIParent dimensions bound picker scale. None of these changes require a combat
+unit lookup for layout. Player resource events and player status widgets are
+removed. Native enemy health, raid-marker cells and opaque cooldown durations
+retain their prior verified boundaries.
+
+The observer now exposes currentTarget alongside the unique enemies list. The
+HUD excludes that identity from its nine secondary slots. Precombat refreshes
+select only target, including an unknown-threat target. Target switches clear
+slot-one details synchronously; an unreadable identity supplies no snapshot row.
+
+Public composition uses GetStanceAnchor/GetCooldownAnchor and the picker runtime's
+CanConfigure/Toggle interface. Removed health-bar accessors are not retained as
+compatibility aliases. Preview has its own picker-owned frames and never writes
+an observer snapshot. The third character store contains only minimapAngle.
+
 
 ## Runtime compatibility policy
 
@@ -13,7 +45,7 @@ unavailable/fallback paths.
 Development export verification remains strict and separate: a changed installed
 build needs a fresh matching export and contract review. Runtime tolerance does
 not relax export provenance or establish live acceptance. Reviewed beta export:
-1.60.1.69913; fresh on 2026-09-17. Earlier exact-build statements below describe
+1.60.1.69977; refreshed on 2026-09-24. Earlier exact-build statements below describe
 historical candidates and are superseded by this policy.
 
 

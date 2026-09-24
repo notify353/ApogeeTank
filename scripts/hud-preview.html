@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apogee Tank — layout review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#11151b;color:#e1e6ed;font:14px/1.5 system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}h1{font-size:22px;font-weight:500;margin:0}p{color:#aeb9c7;margin:8px 0 18px}nav{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}button{background:#242d39;border:1px solid #455264;color:#dfe7ef;border-radius:5px;padding:9px 13px;font:inherit;cursor:pointer}button[aria-pressed=true]{background:#d2b479;color:#1c2026;border-color:#d2b479}canvas{display:block;width:100%;background:#0a0e14;border:1px solid #2b3542;border-radius:8px}small{color:#97a5b7}#status{margin-top:14px}
+</style></head><body><main>
+<header><h1>Apogee Tank</h1><small>Threat-centered HUD · implementation preview</small></header>
+<p>Actual addon Lua layout captured in the test environment. Choose a state to inspect. Spell artwork uses placeholders; native WoW rendering and combat permissions still need in-game verification.</p>
+<nav aria-label="Captured HUD states" id="states"></nav>
+<canvas id="view" aria-label="Addon layout preview"></canvas>
+<p id="status" aria-live="polite"></p>
+<small>The in-game minimap button opens the picker. Its preview is isolated from the live target. No player health or power bars are included.</small>
+</main><script>
+const captures=__CAPTURE_DATA__;
+const canvas=document.getElementById('view'),ctx=canvas.getContext('2d'),nav=document.getElementById('states');
+let selected=0;
+const strata={BACKGROUND:0,LOW:1,MEDIUM:2,HIGH:3,DIALOG:4};
+const factors=p=>[p.includes('LEFT')?0:p.includes('RIGHT')?1:.5,p.includes('TOP')?0:p.includes('BOTTOM')?1:.5];
+const color=(a,fallback='#c9d4e2')=>Array.isArray(a)?`rgba(${a.slice(0,3).map(v=>Math.round(v*255)).join(',')},${a[3]??1})`:fallback;
+function render(){
+ const scene=captures[selected],nodes=new Map(scene.nodes.map(n=>[n.id,n])),rects=new Map(),visiting=new Set();
+ function box(id){
+  if(!id)return {x:0,y:0,w:1920,h:1080,s:1,alpha:1,z:0};
+  if(rects.has(id))return rects.get(id);
+  if(visiting.has(id))throw Error('Cyclic frame anchor');
+  visiting.add(id);
+  const n=nodes.get(id),parent=box(n.parent),scale=parent.s*(n.scale??1);
+  const z=(n.strata?(strata[n.strata]??2)*10000:Math.floor(parent.z/10000)*10000)+(n.frameLevel??((parent.z%10000)+1));
+  let r={x:parent.x,y:parent.y,w:(n.width??0)*scale,h:(n.height??0)*scale,s:scale,alpha:parent.alpha*(n.alpha??1),z};
+  if(n.name==='UIParent')r={x:0,y:0,w:1920,h:1080,s:1,alpha:1,z:0};
+  else if(n.allPoints){const target=box(n.allPoints);r={...r,x:target.x,y:target.y,w:target.w,h:target.h};}
+  else {
+   if(n.kind==='FontString'){r.w=r.w||((n.text??'').replace(/\|c[0-9a-f]{8}|\|r/g,'').length*(n.fontSize??11)*.57*scale);r.h=r.h||(n.fontSize??11)*1.25*scale;}
+   const anchors=(Array.isArray(n.points)?n.points:[]).map(p=>{const q=box(p[1]),f=factors(p[2]);return {f:factors(p[0]),x:q.x+q.w*f[0]+p[3]*scale,y:q.y+q.h*f[1]-p[4]*scale};});
+   if(anchors.length>1){const [a,b]=anchors;if(a.f[0]!==b.f[0])r.w=(b.x-a.x)/(b.f[0]-a.f[0]);if(a.f[1]!==b.f[1])r.h=(b.y-a.y)/(b.f[1]-a.f[1]);}
+   if(anchors.length){const a=anchors[0];r.x=a.x-r.w*a.f[0];r.y=a.y-r.h*a.f[1];}
+  }
+  visiting.delete(id);rects.set(id,r);return r;
+ }
+ const visible=scene.nodes.filter(n=>n.shown&&n.name!=='UIParent').map(n=>({n,r:box(n.id)}));
+ const drawable=visible.filter(({n})=>n.kind==='Texture'||n.kind==='FontString'||n.kind==='StatusBar'||n.backdropColor||n.template==='UICheckButtonTemplate'||n.template==='UIPanelButtonTemplate'||n.template==='UIPanelCloseButton');
+ const minX=Math.min(...drawable.map(o=>o.r.x))-28,maxX=Math.max(...drawable.map(o=>o.r.x+o.r.w))+28;
+ const minY=Math.min(...drawable.map(o=>o.r.y))-28,maxY=Math.max(...drawable.map(o=>o.r.y+o.r.h))+28;
+ const width=canvas.clientWidth,dpr=window.devicePixelRatio||1,zoom=Math.min(1.7,(width-20)/(maxX-minX)),height=Math.max(230,(maxY-minY)*zoom+20);
+ canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.height=height+'px';ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);
+ ctx.translate((width-(maxX-minX)*zoom)/2,height/2-(maxY-minY)*zoom/2);ctx.scale(zoom,zoom);ctx.translate(-minX,-minY);
+ const layer={BACKGROUND:0,BORDER:1,ARTWORK:2,OVERLAY:3};
+ drawable.sort((a,b)=>a.r.z-b.r.z||(layer[a.n.layer]??4)-(layer[b.n.layer]??4));
+ for(const {n,r} of drawable){
+  ctx.save();ctx.globalAlpha=r.alpha;const {x,y,w,h,s}=r;
+  if(n.backdropColor){ctx.fillStyle=color(n.backdropColor);ctx.fillRect(x,y,w,h);ctx.strokeStyle='#424a57';ctx.strokeRect(x,y,w,h);}
+  if(n.kind==='Texture'){
+   if(n.color){ctx.fillStyle=color(n.color);ctx.fillRect(x,y,w,h);}
+   else if(n.texture){ctx.fillStyle='#29384b';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#728094';ctx.strokeRect(x+.5,y+.5,w-1,h-1);ctx.fillStyle='#e4ca8e';ctx.font=`${Math.max(9,Math.min(w,h)*.65)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';let glyph=String(n.texture).includes('RaidTarget')?'◆':String(n.texture).includes('Defend')?'◈':typeof n.texture==='number'?'✦':'?';ctx.fillText(glyph,x+w/2,y+h/2);}
+  }else if(n.kind==='StatusBar'){ctx.fillStyle=color(n.barColor,'#426e54');ctx.fillRect(x,y,w*.75,h);}
+  if(n.template==='UICheckButtonTemplate'){ctx.strokeStyle='#7d8998';ctx.strokeRect(x+5*s,y+5*s,16*s,16*s);if(n.checked){ctx.fillStyle='#e0bb70';ctx.font=`${16*s}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('✓',x+13*s,y+13*s);}}
+  if(n.template==='UIPanelButtonTemplate'){ctx.fillStyle='#50302b';ctx.fillRect(x,y,w,h);ctx.strokeStyle='#8c7756';ctx.strokeRect(x,y,w,h);}
+  if(n.template==='UIPanelCloseButton'){ctx.fillStyle='#ceb99a';ctx.font=`${20*s}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('×',x+12*s,y+12*s);}
+  if(n.text){ctx.fillStyle=color(n.textColor);ctx.font=`${(n.fontSize??11)*s}px sans-serif`;ctx.textAlign=n.justify==='LEFT'?'left':'center';ctx.textBaseline='middle';ctx.fillText(String(n.text).replace(/\|c[0-9a-f]{8}|\|r/g,''),n.justify==='LEFT'?x:x+w/2,y+h/2,w||undefined);}
+  ctx.restore();
+ }
+ document.getElementById('status').textContent=scene.label+' · Captured from the implemented Lua frames. UI enlarged to fit this review.';
+ nav.querySelectorAll('button').forEach((b,i)=>b.setAttribute('aria-pressed',i===selected));
+}
+captures.forEach((c,i)=>{const b=document.createElement('button');b.type='button';b.textContent=c.label;b.addEventListener('click',()=>{selected=i;render()});nav.append(b)});
+new ResizeObserver(render).observe(canvas);render();
+</script></body></html>

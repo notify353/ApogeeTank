@@ -1,3 +1,5 @@
+> Current scope (2026-09-24): Forever only. Era, multi-enemy queues and enemy-effect tracking have been removed. Historical findings below are retained as records; current behavior is documented in README.md, ARCHITECTURE.md and HUD_REDESIGN.md.
+
 # Code quality review and resolutions
 
 Reviewed 2026-09-17 against `da049bbf5f9f4825aa685af4c0c7390c739661ca`.
@@ -20,7 +22,7 @@ character data was modified.
 
 ## Findings and disposition
 
-### P2: Unavailable aura data could stay cached after the reader recovered — fixed
+### P2: Unavailable aura data could stay cached after the reader recovered â€” fixed
 
 Baseline evidence: `Threat/Observer.lua:119`, `:128`, `:133`, `:172`.
 A failed read produced a cache entry with nil player auras. Subsequent refreshes
@@ -35,7 +37,7 @@ per refresh; there is no new polling driver. Successful empty lists remain cache
 an aura event, successful caching and empty-result caching. Live incidence of
 transient API failure was not measured.
 
-### P2 on downgrade: Newer character schemas could be rewritten as version 2 — fixed
+### P2 on downgrade: Newer character schemas could be rewritten as version 2 â€” fixed
 
 Baseline evidence: `Core/ObservedSpellList.lua:17`; SavedVariable assignments in
 `Effects/Runtime.lua:67` and `Cooldowns/Runtime.lua:86`.
@@ -57,7 +59,7 @@ clear calls, sleeping rejected drivers and one message per affected feature.
 Model tests retain version-1 migration, version-2 reload, opt-outs and Clear
 behavior, and now cover rejection plus copied watched entries.
 
-### P3: Shared selection model contained missing-effect policy — fixed
+### P3: Shared selection model contained missing-effect policy â€” fixed
 
 Baseline evidence: `Core/ObservedSpellList.lua:120`, `Effects/Model.lua:2`.
 Core now owns neutral spell identity, watched/ignored selections, copied entries,
@@ -70,7 +72,7 @@ It remains owned by Effects and accesses only the supplied cooldown selection
 operations. Extracting a generic picker registry for two fixed columns was
 intentionally deferred; it would add more indirection than useful separation.
 
-### P3: Unused refresh/color exports obscured the intended lifecycle — fixed
+### P3: Unused refresh/color exports obscured the intended lifecycle â€” fixed
 
 Baseline evidence: `Threat/Hud.lua:515`, `:522`, `:583`, `:645` and
 `Threat/Observer.lua:253`. Repository-wide searches found no consumers for
@@ -82,7 +84,7 @@ Stable public anchors/callbacks and tested snapshot metadata remain. Historical
 geometry constants still contributing to layout were not deleted or adjusted.
 No abandoned outline or tab construction remains in the current HUD.
 
-### P3: README contradicted the current addon — fixed
+### P3: README contradicted the current addon â€” fixed
 
 Baseline evidence: `README.md:6`, `:34`, `:63`, `:77`, `:123`, `:129`, `:132`, `:171`.
 The rewritten README describes both learned lists, the draggable side-by-side

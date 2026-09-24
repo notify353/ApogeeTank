@@ -1,31 +1,19 @@
 {
   "schemaVersion": 1,
   "targets": {
-    "classicEra": {
-      "product": "wow_classic_era",
-      "clientDirectory": "_classic_era_",
-      "executable": "WowClassic.exe",
-      "clientVersion": "1.15.9.69722",
-      "interface": 11509,
-      "recordedOn": "2026-09-13"
-    },
     "foreverBeta": {
       "product": "wow_classic_beta",
       "clientDirectory": "_classic_beta_",
       "executable": "WowB.exe",
-      "clientVersion": "1.60.1.69913",
+      "clientVersion": "1.60.1.69977",
       "interface": 16001,
-      "recordedOn": "2026-09-17",
+      "recordedOn": "2026-09-24",
       "requiredFiles": [
         "RaidMarkersDocumentation.lua",
         "SimpleTextureBaseAPIDocumentation.lua",
         "SpellBookDocumentation.lua",
         "SimpleStatusBarAPIDocumentation.lua",
-        "FrameAPICooldownDocumentation.lua",
-        "CurveUtilDocumentation.lua",
-        "LuaColorCurveObjectAPIDocumentation.lua",
-        "LuaCurveObjectBaseAPIDocumentation.lua",
-        "LuaCurveObjectConstantsDocumentation.lua"
+        "FrameAPICooldownDocumentation.lua"
       ]
     }
   }

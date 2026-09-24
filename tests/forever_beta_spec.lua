@@ -7,7 +7,7 @@ local secret = setmetatable({}, {
 })
 function issecretvalue(value) return rawequal(value, secret) end
 function canaccessvalue(value) return not issecretvalue(value) end
-local version, build, interface = "1.60.1", "69913", 16001
+local version, build, interface = "1.60.1", "69977", 16001
 WOW_PROJECT_ID, WOW_PROJECT_CLASSIC = 1, 2
 function GetBuildInfo() return version, build, "", interface end
 local function Load(path) assert(loadfile(path))("ApogeeTank", addon) end
@@ -22,14 +22,15 @@ local create=CreateFrame; CreateFrame=nil; Load("Core/Client.lua")
 assert(not addon.Client,"Missing frame capability must stop startup")
 CreateFrame=create; print=originalPrint
 for _, change in ipairs({
-    { "1.60.2", "69913", 16002, 1 },
-    { "1.60.1", "69913", 16001, 2 }, { "12.0.0", "69913", 120000, 1 },
+    { "1.15.9", "69722", 11509, 2 },
+    { "1.60.2", "69977", 16002, 1 },
+    { "1.60.1", "69977", 16001, 2 }, { "12.0.0", "69977", 120000, 1 },
 }) do
     version, build, interface, WOW_PROJECT_ID = unpack(change)
     addon.Client = nil; Load("Core/Client.lua")
     assert(addon.Client == nil, "unknown client admitted")
 end
-version, build, interface, WOW_PROJECT_ID = "1.60.1", "69913", 16001, 1
+version, build, interface, WOW_PROJECT_ID = "1.60.1", "69977", 16001, 1
 local savedGuard = canaccessvalue
 canaccessvalue = nil; Load("Core/Client.lua")
 assert(addon.Client == nil, "beta enabled without secret guards")
@@ -48,33 +49,13 @@ function UnitPowerMax() return 100 end
 function UnitCastingInfo() return "Cast", nil, 1, secret, 1000 end
 function UnitChannelInfo() return nil end
 Load("Core/UnitAPI.lua")
-local health, maximum, valid = addon.UnitAPI.GetHealth("player")
-assert(health == 0 and maximum == 1 and valid == false)
-assert(addon.UnitAPI.GetGUID("target") == nil)
 assert(addon.UnitAPI.GetCast("target") == nil)
-assert(#addon.UnitAPI.GetPowerChannels("player") == 0)
 local bar = {}
 function bar:SetMinMaxValues(low, high) self.maximum = high end
 function bar:SetValue(value) self.value = value end
 function bar:SetStatusBarColor() end
 assert(addon.UnitAPI.PaintNativeHealth(bar, "player"))
 assert(rawequal(bar.value, secret), "native health did not receive original value")
-assert(addon.UnitAPI.PaintNativePower(bar, "player"))
-assert(rawequal(bar.value, secret), "native power did not receive original value")
-local aura = { spellId = 1, sourceUnit = "player", name = "Effect" }
-C_UnitAuras = { GetAuraDataByIndex = function(_, index) if index == 1 then return aura end end }
-function UnitIsUnit() return true end
-Load("Core/Auras.lua")
-assert(#addon.Auras.ReadPlayerHarmful("target") == 1)
-for _, field in ipairs({ "sourceUnit", "spellId", "expirationTime", "applications" }) do
-    local previous = aura[field]; aura[field] = secret
-    assert(addon.Auras.ReadPlayerHarmful("target") == nil, "restricted aura became absence")
-    aura[field] = previous
-end
-function UnitIsUnit() return secret end
-assert(addon.Auras.ReadPlayerHarmful("target") == nil, "unknown ownership became absence")
-function UnitIsUnit() return false end
-assert(#addon.Auras.ReadPlayerHarmful("target") == 0)
 local cooldown = { isEnabled = true, startTime = 1, duration = 10, modRate = 1,
     isActive = true, isOnGCD = false }
 local charges
@@ -108,6 +89,15 @@ charges = nil
 cooldown.duration = secret
 assert(addon.CooldownAPI.Read(1, true).nativeDuration == durationObject,
     "restricted spell duration was discarded")
+cooldown.duration, cooldown.modRate = 10, 2
+assert(addon.CooldownAPI.Read(1, true).nativeDuration == durationObject,
+    "non-default numeric rate bypassed native timing")
+charges = { maxCharges = 2, currentCharges = 0, isActive = true,
+    cooldownStartTime = 1, cooldownDuration = 10, chargeModRate = 0.5 }
+assert(addon.CooldownAPI.Read(1, true).nativeDuration == durationObject,
+    "non-default charge rate bypassed native timing")
+charges = nil
+cooldown.duration, cooldown.modRate = secret, 1
 C_Spell.GetSpellCooldownDuration = function() error("temporarily unavailable") end
 assert(addon.CooldownAPI.Read(1, true).unknown
     and not addon.CooldownAPI.Read(1, true).nativeDuration,

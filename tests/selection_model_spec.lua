@@ -1,7 +1,6 @@
 local addon = {}
 assert(loadfile("Core/ObservedSpellList.lua"))("ApogeeTank", addon)
-assert(loadfile("Effects/Model.lua"))("ApogeeTank", addon)
-local Model = addon.EffectsModel
+local Model = addon.ObservedSpellList
 local future = { version = 99, watched = { { spellId = 1 } }, futureField = true }
 local unsupported, reason = Model.Create(future)
 assert(unsupported == nil and reason and future.version == 99 and future.futureField,
@@ -27,16 +26,6 @@ assert(#model.GetEntries() == 2 and #model.GetSaved().watched == 2,
     "discovery did not automatically watch both unique effects")
 assert(model.SetWatched(a.spellId, true))
 assert(model.SetWatched(b.spellId, true))
-assert(#model.GetMissing({}, true) == 2)
-assert(#model.GetMissing({ a }, true) == 1, "player-owned application did not cover")
-assert(model.GetMissing({ a }, true)[1].spellId == b.spellId)
-a.applications = 1; a.expirationTime = 0.1
-assert(#model.GetMissing({ a, b }, true) == 0, "stack or expiration policy was introduced")
-assert(#model.GetMissing({ { spellId = 2001, name = a.name } }, true) == 2,
-    "different ranks or matching names were guessed as equivalent")
-assert(#model.GetMissing(nil, true) == 0 and #model.GetMissing({}, false) == 0,
-    "unknown aura state or invalid target produced a missing-effect claim")
-
 local saved = model.GetSaved()
 assert(saved.version == 2 and saved.watched[1].sourceUnit == nil
     and saved.watched[1].applications == nil and saved.watched[1].expirationTime == nil)
@@ -76,7 +65,7 @@ assert(model.GetSaved() == beforeClear and #beforeClear.watched == 0
 assert(#Model.Create(beforeClear).GetEntries() == 0, "cleared choices returned on reload")
 model.Observe({ a })
 assert(model.IsWatched(1001), "a cleared opt-out prevented learning from starting fresh")
-print("Automatic discovery, persistent opt-outs, migration and coverage tests passed")
+print("Automatic discovery, persistent opt-outs, migration and ordering tests passed")
 
 local revisionModel = Model.Create(nil)
 local effect = { spellId = 999, name = "Revision test", icon = 1 }
