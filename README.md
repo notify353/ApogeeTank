@@ -33,11 +33,13 @@ All HUD spell and marker icons use 22-unit slots and 2-unit gaps at the existing
 
 ## Verification
 
-Reviewed Forever export: **1.60.1.69977**, project 1, interface 16001. Later builds in the same supported family warn if unreviewed; other families do not start. The export check remains strict.
+Reviewed Forever export: **1.60.1.70009**, project 1, interface 16001. Later builds in the same supported family warn if unreviewed; other families do not start. The export check remains strict.
+
+The refreshed 70009 export passes strict freshness verification and the full local suite, including exported secure-action integration. These tests execute current Blizzard Lua with mocked engine inputs; live taint and visual acceptance remain separate. See [the quality review](docs/QUALITY_SWEEP.md).
 
 ```powershell
 pwsh ./scripts/test-local.ps1 -ForeverExportPath 'C:/Program Files (x86)/World of Warcraft/_classic_beta_/BlizzardInterfaceCode/Interface/AddOns'
 pwsh ./scripts/check-wow-api-export.ps1
 ```
 
-Native secure-action integration reads the local export without redistributing it. Omitted paths print SKIP; invalid supplied paths fail. [Review and live acceptance](docs/HUD_REDESIGN.md) explains what still needs in-game testing. No installation or release is automatic.
+Native secure-action integration reads the local export without redistributing it. Omitted paths print SKIP; invalid supplied paths fail. [Review and live acceptance](docs/HUD_REDESIGN.md) explains what still needs in-game testing. Requested addon changes include local Forever installation after checks, with a verified backup and preservation of saved data and unrecognized files. Publishing and releases remain separately authorized.

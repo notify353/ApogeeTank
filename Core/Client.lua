@@ -7,7 +7,7 @@ if WOW_PROJECT_ID == 1 and type(version)=="string" and version:match("^1%.60%.")
     and type(canaccessvalue) == "function" then
     addon.Client = "foreverBeta"
 end
-local reviewed = "69977"
+local reviewed = "70009"
 if addon.Client and tostring(build) ~= reviewed and not addon.compatibilityWarned then
     addon.compatibilityWarned = true
     print("Apogee Tank: this client build is unverified; continuing with capability checks. Report errors after updates.")

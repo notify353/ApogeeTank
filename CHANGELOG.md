@@ -2,6 +2,10 @@
 
 ## Unreleased — Forever only
 
+- Limit cooldown range notifications to the affected spell and skip unchanged seal-artwork writes, preserving synchronous updates and guarded aura reads.
+- Review refreshed Forever 1.60.1.70009 contracts and native secure integration; update the reviewed build and export provenance.
+- Honor event-scoped GCD classification and latest-rank cooldown selections; recover failed seal timers, clear unknown seal eligibility, and clear guidance on death.
+- Standardize author metadata and current Forever API guidance; preserve historical diagnostic records and source attribution.
 - Use a threat-centered HUD without player bars or mob names, with warm ivory threat/health and consistent 22-unit icons.
 - Add independent native spell actions, offensive target acquisition, Paladin known-spell defaults and learned seal choices.
 - Add guarded seal activity/countdown presentation; combat aura readability remains limited.

@@ -77,5 +77,5 @@ function addon.StartGuidance(getAnchor, stance)
     for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "PLAYER_LEAVING_WORLD",
         "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_ROLES_ASSIGNED",
         "ROLE_CHANGED_INFORM", "GROUP_ROSTER_UPDATE", "SPELLS_CHANGED", "UNIT_AURA",
-        "UPDATE_SHAPESHIFT_FORM", "PLAYER_ALIVE", "PLAYER_UNGHOST" }) do driver:RegisterEvent(event) end
+        "UPDATE_SHAPESHIFT_FORM", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST" }) do driver:RegisterEvent(event) end
 end

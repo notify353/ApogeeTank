@@ -16,7 +16,7 @@ local Style = {
 addon.Style = Style
 
 function Style.GetScale()
-    -- Keybinds uses 36px slots; Tank's 18px slots inherit this at the roots.
+    -- Preserve Tank's existing root scale independently of other addons.
     return 2
 end
 

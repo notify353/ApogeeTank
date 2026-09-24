@@ -1,145 +1,90 @@
-> Current scope (2026-09-24): Forever only. Era, multi-enemy queues and enemy-effect tracking have been removed. Historical findings below are retained as records; current behavior is documented in README.md, ARCHITECTURE.md and HUD_REDESIGN.md.
+# Verified Forever API reference
 
-# Verified client API reference
+## Supported client and evidence
 
-## Current redesign boundaries (2026-09-24)
+WoW Forever is the sole supported runtime: project 1, version family 1.60.x,
+interface 16001. The reviewed local export is **1.60.1.70009**. Startup requires
+frame creation and restricted-value guards. Later builds within that family
+produce one warning per session; other families and interfaces do not start.
+A warning is not a claim of verified compatibility.
 
-The threat-centered redesign supersedes historical player-health picker access,
-player power/color rendering, and live-HUD demo descriptions below. See
-[redesign validation](HUD_REDESIGN.md) for current behavior.
-
-The refreshed Forever 1.60.1.69977 and Era 1.15.9.69722 exports contain the native
-SecureActionButtonTemplate hostility remapping and raidtarget set action. Both
-exported resolver/action implementations are executed in local tests. Protected
-visibility remains the native living-hostile-target condition; no snippet or
-addon SetRaidTarget call is introduced. Combat reload defers protected setup.
-
-Minimap geometry uses GetCursorPosition, GetEffectiveScale/GetCenter, native
-button drag events and math.atan2, consistent with local exported minimap callers.
-UIParent dimensions bound picker scale. None of these changes require a combat
-unit lookup for layout. Player resource events and player status widgets are
-removed. Native enemy health, raid-marker cells and opaque cooldown durations
-retain their prior verified boundaries.
-
-The observer now exposes currentTarget alongside the unique enemies list. The
-HUD excludes that identity from its nine secondary slots. Precombat refreshes
-select only target, including an unknown-threat target. Target switches clear
-slot-one details synchronously; an unreadable identity supplies no snapshot row.
-
-Public composition uses GetStanceAnchor/GetCooldownAnchor and the picker runtime's
-CanConfigure/Toggle interface. Removed health-bar accessors are not retained as
-compatibility aliases. Preview has its own picker-owned frames and never writes
-an observer snapshot. The third character store contains only minimapAngle.
-
-
-## Runtime compatibility policy
-
-Routine build-number changes within Classic Era 1.15.x (project 2, interface
-11509) or Forever beta 1.60.x (project 1, interface 16001) do not disable this
-addon. Required capabilities still gate startup. An unreviewed build produces
-one warning per session; it is not a claim of tested compatibility. Other
-families/interfaces stay unsupported. Existing restricted-value and protected
-operation guards remain in force. Optional features keep their own safe
-unavailable/fallback paths.
-
-Development export verification remains strict and separate: a changed installed
-build needs a fresh matching export and contract review. Runtime tolerance does
-not relax export provenance or establish live acceptance. Reviewed beta export:
-1.60.1.69977; refreshed on 2026-09-24. Earlier exact-build statements below describe
-historical candidates and are superseded by this policy.
-
-
-## Export freshness check
-
-Run `pwsh ./scripts/check-wow-api-export.ps1` to compare the installed Era build,
-recorded metadata, TOC interface, and required exported documentation files.
-It fails if files are absent or predate the client executable. Use `-WowRoot`
-or `WOW_ROOT` for a nonstandard installation directory.
-
-After refreshing the matching client's interface export, run the same command
-with `-Record` to update `docs/wow-api-export.json`. Recording validates first
-and writes only repository metadata; it does not export files, launch WoW,
-change installations, or update the TOC. `recordedOn` is the recording date,
-not proof of when Blizzard's export was generated.
-
-This checks export freshness, not API signatures or runtime compatibility.
-File timestamps are a heuristic and cannot prove which build produced an export.
-Continue reviewing the exported contracts and testing in-game.
-
-Era is the default target. Use -Target foreverBeta for the independently
-recorded beta export. An unknown target fails rather than falling back to Era.
-
-The fixture tests run through `test-local.ps1` without requiring WoW. Run the
-live export check separately on a machine with the client installed.
-
-## Verified source
-
-The source checkout's read-only export checker passed for Classic Era build
-1.15.9.69722 and interface 11509 during extraction on 2026-09-13.
+The initial stale-export blocker was resolved by the owner's code export on
+2026-09-24. Current contracts and exported secure actions were rechecked against
+70009; strict freshness and the complete local suite pass. The event-only GCD
+flag and guarded aura-access requirements remain in force.
 
 Authoritative local export:
-`C:/Program Files (x86)/World of Warcraft/_classic_era_/BlizzardInterfaceCode/Interface/AddOns/`
+`C:/Program Files (x86)/World of Warcraft/_classic_beta_/BlizzardInterfaceCode/Interface/AddOns/`
 
-References under `Blizzard_APIDocumentationGenerated`:
+Tank is independently installable. The Apogee Party Health Bars ancestry and
+MIT attribution do not create a runtime dependency on that addon or its APIs.
+[Architecture](ARCHITECTURE.md) describes current module ownership;
+[HUD validation](HUD_REDESIGN.md) records remaining live acceptance.
 
-- `UnitDocumentation.lua`: threat arguments and return values; health, power,
-  identity, casting/channeling, combat, unit and spellcast event payloads.
-- `UnitAuraDocumentation.lua`: indexed harmful-aura reads and UNIT_AURA.
-- `NamePlateDocumentation.lua` and `NamePlateManagerDocumentation.lua`:
-  visible-nameplate enumeration and unit-added/removed events.
-- `Blizzard_NamePlates` exported Lua: nameplate unit-token lifecycle.
-- `Blizzard_UIPanelTemplates/Shared/UIPanelSpellButtonFrame.lua` and Classic
-  exported panel XML: effect tooltips, check buttons, and scroll-frame templates.
-- `RestrictedActionsDocumentation.lua`: InCombatLockdown; exported Classic
-  AutoComplete and UI panel templates: modifier-key and mouse-up usage.
+## Current API boundaries
 
-The observed-effect feature shares the indexed harmful-aura read boundary and
-filters sourceUnit with UnitIsUnit(sourceUnit, "player") for both discovery and
-coverage. Player aliases count; other players, pets, and unknown casters do not.
-UNIT_AURA, target changes, and world transitions request discovery; health,
-faction and flag events refresh presentation without discovery reads. Unknown
-reads never become absence assertions. Only the
-learned effect identities and explicit opt-outs persist through a character-specific
-SavedVariable. New own effects are automatically watched. Clear All mutates this
-saved table in place and cancels pending discovery until the next gameplay event.
+- `UnitDocumentation.lua`: target identity, threat, health, casts, assigned roles
+  and spellcast events. Ordinary Lua calculations consume only readable values.
+  Unknown identity or threat never becomes a fabricated snapshot or safe state.
+- `SimpleStatusBarAPIDocumentation.lua`: native health setters accept restricted
+  values. Tank passes health directly to native widgets without reading it back.
+- `RaidMarkersDocumentation.lua` and `SimpleTextureBaseAPIDocumentation.lua`:
+  marker indices can be secret; native `SetSpriteSheetCell(index, 4, 4)` renders
+  them without addon arithmetic or persistence.
+- `SpellDocumentation.lua`, `SpellSharedDocumentation.lua` and
+  `SpellBookDocumentation.lua`: cooldowns, charges, learned spells and events.
+  `isOnGCD` is used only during `SPELL_UPDATE_COOLDOWN`; successful casts require
+  confirmed real cooldown/recharge before discovery. Native duration objects
+  handle opaque or rate-adjusted timers; ordinary animation uses cached state.
+- `FrameAPICooldownDocumentation.lua`: native duration-object rendering. Unknown
+  or held state never asserts readiness. Missing capabilities fail safely.
+- `UnitAuraDocumentation.lua`: aura reads can require access and return secrets.
+  Guidance avoids combat aura scans. The seal experiment only presents a publicly
+  identified active seal and delegates opaque timers to native widgets; restricted
+  or unavailable data clears presentation. Casts never reconstruct seal identity.
+- Exported `SecureTemplates.lua` and `SecureStateDriver.lua`: native marker
+  actions, hostility remapping, visibility and spell/macro actions. Protected
+  geometry and assignments are configured outside combat; combat reload defers
+  setup. No restricted snippets or direct addon marking calls are used.
 
-Per-enemy missing reminders consume the threat observer's complete normalized
-player-owned aura set through the HUD's public row snapshot/callback contract.
-They do not infer absence from the six visible right-side icons. Aura read
-unavailability remains nil, distinct from a successful empty read. Row changes
-refresh the accessory synchronously to avoid carrying one enemy's reminders
-onto a recycled row. Successful reads, including empty lists, are cached until
-invalidated. Unavailable reads retry on the existing coalesced threat refresh;
-there is no additional per-enemy polling driver.
+Inherited APIs are retained when the Forever export and current behavior require
+them; their age or location in a Blizzard Classic folder is not evidence of an
+Era compatibility path. The runtime has no Era branch, nameplate enemy queue,
+player health/power bars or enemy-effect tracking. The historical effects store
+is declared in the TOC only and is never read, migrated, cleared or written.
 
-Picker access is a plain mouse-up handler on the existing player health bar,
-not a saved key binding or secure action. Only Shift-left-click without Ctrl/Alt
-is accepted. Combat-event state, InCombatLockdown, and UnitAffectingCombat gate
-both the gesture and deferred opening; combat also closes the picker and guards
-its mutation callbacks. The threat HUD owns the frame's mouse/tooltip scripts,
-and the effects feature connects through its public click-handler contract.
+## Export freshness and tests
 
-Threat lead is 100 minus the closest observed challenger's scaled percentage.
-Recovery deficit is 100 minus the player's scaled percentage. These preserve
-the source HUD's policy; neither value predicts seconds or attacks to aggro.
+```powershell
+pwsh ./scripts/check-wow-api-export.ps1
+pwsh ./scripts/test-local.ps1 -ForeverExportPath 'C:/Program Files (x86)/World of Warcraft/_classic_beta_/BlizzardInterfaceCode/Interface/AddOns'
+```
 
-The HUD, observer, color policy, fixed debuff mapping, and regression cases were
-extracted from the local Apogee Party Health Bars checkout. The original source
-is unchanged. Existing rank IDs remain in the compact column lookup to preserve
-column behavior; only actually observed player-owned auras are rendered. This
-lookup does not enable another client or load the source effect-reminder engine.
+The checker defaults to the sole recorded target, `foreverBeta`. Use `-WowRoot`
+or `WOW_ROOT` for a different installation. It compares installed build metadata,
+TOC interface, recorded provenance and required documentation timestamps.
+Missing, older or mismatched exports fail. After refreshing and reviewing the
+matching export, `-Record` updates repository metadata only. File timestamps are
+a freshness heuristic, not proof of origin or API correctness.
 
-Refresh and validate the matching local export before API changes following a
-client patch. Reassess the explicit interface gate at that time. Future clients
-require their own verified export; this addon makes no assumptions about them.
+The local suite includes Lua 5.1 parsing, Forever gating, persistence, restricted
+values, feature lifecycle and exact exported native secure resolver/action tests
+with mocked engine inputs. An omitted export prints SKIP; an invalid supplied
+path fails. No Blizzard source is redistributed.
 
-Cooldown learning uses SpellDocumentation.lua and SpellSharedDocumentation.lua:
-C_Spell.GetSpellInfo, GetSpellCooldown and GetSpellCharges. The isOnGCD field
-is only trusted inside SPELL_UPDATE_COOLDOWN, as the export requires. Successful
-player spell IDs come from UnitDocumentation.lua's UNIT_SPELLCAST_SUCCEEDED.
-SPELL_UPDATE_CHARGES supplies charge updates. No fixed GCD spell ID or duration
-threshold is used. Ordinary countdown ticks make no spell API calls.
+Passing these checks does not prove live taint safety, visual parity, group
+permissions or FPS. Remaining in-client checks include combat reload, marker
+permissions, cooldown/charge completion and targeting, aura click activation,
+seal switching/expiration, flicker and coexistence with other addons. Reported
+combat seal detection remains unconfirmed; neutral clickable seals are the
+fallback. Requested changes include local Forever installation after checks and
+backup verification; release and publication remain separately authorized.
 
+## Historical diagnostic records
+
+The records below describe superseded implementations and exports. Their Era,
+player-bar, name-label and multi-enemy behavior is not supported or tested by the
+current addon. Keep them as diagnostic history, not implementation instructions.
 
 ## Historical beta preparation: 1.60.1.69893 (2026-09-17)
 

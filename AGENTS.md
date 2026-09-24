@@ -14,7 +14,8 @@
 - Preserve historical ApogeeTankEffectsDB only through its TOC declaration; do not read, migrate, clear or write it. Enemy-effect code is removed.
 - Verify working directory, branch, remote and uncommitted changes before edits. Use short-lived feature branches, preserve user changes and keep modifications scoped.
 - Run `pwsh ./scripts/test-local.ps1` for code changes, supplying the Forever export for native integration. Report remaining live checks honestly; mocks cannot establish native visual parity or taint safety.
-- Do not install, publish, release or alter client installations without the owner's authorization. Keep source/third-party license notices intact.
+- Requests to change Tank include local WoW Forever installation after proportionate checks; no separate install prompt is required. Verify the actual Forever destination and source package, preserve SavedVariables and unrecognized files, detect unexpected installed edits before overwriting, and use a verified backup with a rollback path. Do not operate or restart the game. Report source/destination, backup, file verification, required reload and remaining live checks; offline checks never establish in-game acceptance.
+- Publishing, pushing, releases, destructive cleanup and unrelated client/settings changes remain separately authorized actions. Keep source/third-party license notices intact.
 
 - Authorized stance-equivalent guidance: Guidance/ owns Paladin aura, Warrior stance and Druid form reminders only. No seal, blessing, shout, Mark/Gift or Righteous Fury upkeep advice belongs in Tank. Native assigned roles drive policy; explicit NONE defaults to damage. Unreadable roles or auras remain unknown. No manual role settings, casting, cancellation, saved catalogs or combat spellbook polling.
 
@@ -27,3 +28,5 @@
 - Authorized seal choice row: Seals/ owns all learned Paladin seal families below the threat/health stack, left-aligned with cooldowns at the same icon size/gap. Native tooltips and secure self-cast buttons work in combat after OOC setup. This is a neutral choice row, not seal recommendations, role selection, missing-buff coaching or guessed timers. No persistence or combat aura/spellbook polling.
 
 - Authorized seal activity experiment: event-driven, guarded combat aura access may show a native countdown on a publicly identified active seal and gray other seals. Unknown/restricted state clears presentation; never reconstruct timers or identity from casts. Secure actions remain unchanged in combat.
+
+- Standing owner authorization (2026-09-24): requests to change this addon include validated local WoW Forever installation without another installation prompt; this supersedes separate-approval requirements above for local installation only. Verify the actual Forever destination, preserve SavedVariables and unrecognized/user-modified files, keep a verified rollback backup, verify copied files and report reload needs. Do not operate or restart the game. Offline checks/installation do not establish in-game acceptance; publishing, pushes and releases remain separately authorized.
