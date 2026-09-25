@@ -11,6 +11,10 @@ A fixed current-target threat HUD for **WoW Forever** (1.60.x, interface 16001).
 
 Threat compares the player with available party members and pets, not an entire raid. Unreadable identity clears target details; native visibility can retain a neutral marking surface for a living hostile target. Native widgets render restricted health, marker indices and opaque cooldown durations without addon arithmetic on those values.
 
+Offensive cooldown clicks check native `[noharm][dead]` conditions at the click to acquire a target. A living attackable target stays selected through cooldown/range failures; changing enemies is a separate player action. Helpful, dual-use and unclassified spells retain direct spell actions. Aura/seal self-casting and native ground-target reticles are unchanged. Offline tests simulate target predicates because the engine macro parser is not in the interface export; native repeat-click and target-transition acceptance remains pending.
+
+With no target, cooldowns natively classified as hostile-unit spells appear gray. They remain clickable and can acquire an enemy. Self/ground spells and unknown classifications retain their existing availability display; cooldown, range and resource failures still apply.
+
 ## Minimap and spell picker
 
 Left-click Tank's minimap button outside combat to open the spell picker. Right-drag repositions the button and saves its angle per character; the default is upper-left. There are no slash commands, key bindings, profiles, or separate settings menus.
@@ -21,13 +25,17 @@ The preview uses selected spell artwork or generic samples. It never replaces th
 
 ## Discovery and data
 
-Successful player casts are learned only after a confirmed real cooldown or charge recharge. GCD-only spells, stance/form identities, items and pets are excluded. Known Paladin Holy Strike, Judgement, Hammer of Justice, Consecration, Holy Shield and Hammer of the Righteous are explicit defaults in that order as learned, respecting opt-outs. Recognized previous default sequences update in place without moving non-default slots; identifiable custom sequences remain unchanged. Saved lists have no order provenance, so a manually reproduced old default sequence is indistinguishable from automatic ordering and also updates. Stance/form/aura guidance uses native assigned roles (unassigned defaults to damage); there is no manual role selector, rotation coaching or blessing upkeep. Cached numeric countdowns animate without spell-API polling; idle strips sleep. Native timers preserve restricted countdowns; unknown/held states never claim readiness.
+Successful player casts are learned only after a confirmed real cooldown or charge recharge. GCD-only spells, stance/form identities, items and pets are excluded. Known Paladin defaults are available in the checklist without first-cast discovery: Holy Strike and Judgement start **unchecked**; Hammer of Justice, Consecration, Holy Shield and Hammer of the Righteous start checked. If enabled, Holy Strike and Judgement precede Hammer of Justice in managed default order. Identifiable custom sequences remain unchanged.
+
+Cooldown schema 3 records explicit checkbox choices, preserving opt-ins and opt-outs through reloads and new ranks. Legacy lists matching the previous automatic default sequence migrate Holy Strike/Judgement to unchecked; legacy custom sequences preserve their selections. Older saves cannot distinguish a manually reproduced default sequence from automatic seeding, so that ambiguous case also migrates to unchecked. Rechecking either spell records an explicit opt-in. No private saved data is needed to apply this policy.
+
+Stance/form/aura guidance uses native assigned roles (unassigned defaults to damage); there is no manual role selector, rotation coaching or blessing upkeep. Cached numeric countdowns animate without spell-API polling; idle strips sleep. Native timers preserve restricted countdowns; unknown/held states never claim readiness.
 
 `ApogeeTankCooldownsDB` stores selected/unchecked cooldowns, `ApogeeTankSealsDB` stores seal-family visibility opt-outs, and `ApogeeTankUIDB` stores minimap angle, all per character. The obsolete `ApogeeTankEffectsDB` declaration is retained solely to preserve historical data; no runtime code reads or writes it. Clearing cooldowns does not reset seal choices, minimap position or legacy effects. Unsupported future schemas are preserved: a future cooldown schema disables cooldown tracking/picker access, while a future seal schema disables the seal row/checklist without resetting it.
 
 ## Paladin seals and active-state limits
 
-The seal row shows selected learned choices with native tooltips. Clicks self-cast in and out of combat; visibility choices and spell assignments update only outside combat. There is no seal recommendation or role selector. When public aura access identifies the active seal, it receives a native countdown if shown, and other seals dim even when the active seal is hidden. Restricted or unavailable access clears those indicators without guessing timers. The owner reported that combat detection did not work in the live test; neutral clickable icons are the fallback.
+The seal row shows selected learned choices with native tooltips **only outside combat**. Blizzard's secure visibility driver hides its protected buttons in combat and on death, restoring selected seals afterward; combat reload defers button creation. Ordinary timer overlays also hide in combat, with no combat seal-aura reads. Outside combat, clicks self-cast and visibility choices/assignments may update. There is no seal recommendation or role selector. When public aura access identifies the active seal, it receives a native countdown if shown, and other seals dim even when the active seal is unchecked. Restricted or unavailable access clears those indicators without guessing timers.
 
 All HUD spell and marker icons use 22-unit slots and 2-unit gaps at the existing scale. Held threat and target health use warm ivory. The latest cleanup removes redundant timer updates; live flicker resolution still needs confirmation.
 

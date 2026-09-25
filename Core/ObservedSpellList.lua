@@ -3,7 +3,7 @@
 local _, addon = ...
 local Model = {}
 addon.ObservedSpellList = Model
-local SCHEMA_VERSION = 2
+local SCHEMA_VERSION = 3
 
 local function Identity(effect)
     if type(effect) ~= "table" then return nil end
@@ -12,7 +12,7 @@ local function Identity(effect)
     local name = type(effect.name) == "string" and effect.name or ("Spell " .. id)
     local icon = effect.icon
     if type(icon) ~= "number" and type(icon) ~= "string" then icon = nil end
-    return { spellId = id, name = name, icon = icon }
+    return { spellId = id, name = name, icon = icon, explicit = effect.explicit == true or nil }
 end
 
 function Model.Create(saved)
@@ -80,7 +80,12 @@ function Model.Create(saved)
             end
         end
     end
-    function self.SetWatched(id, value)
+    function self.SetWatched(id, value, automatic)
+        local choice = watched[id] or ignored[id]
+        if choice and not automatic and not choice.explicit then
+            choice.explicit = true
+            revision = revision + 1
+        end
         if not value then
             if not watched[id] then return true end
             local effect = watched[id]

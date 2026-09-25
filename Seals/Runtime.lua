@@ -22,7 +22,7 @@ function addon.StartSeals(getGeometry)
         else print("Apogee Tank: Seal selection disabled. " .. reason) end
     end
     local function Paint()
-        local state = inWorld and addon.Access.Call(UnitIsDeadOrGhost, "player") == false
+        local state = inWorld and not InCombatLockdown() and addon.Access.Call(UnitIsDeadOrGhost, "player") == false
             and addon.SealAPI.Active(addon.SealEntries or {}) or nil
         for _, button in ipairs(buttons) do
             local active = state and state.spellId == button.spellId
@@ -109,7 +109,7 @@ function addon.StartSeals(getGeometry)
                 UnregisterAttributeDriver(button, "type1"); UnregisterAttributeDriver(button, "spell")
                 RegisterAttributeDriver(button, "type1", entry and "spell" or "nil")
                 RegisterAttributeDriver(button, "spell", entry and tostring(entry.spellId) or "nil")
-                RegisterStateDriver(button, "visibility", entry and "[dead] hide; show" or "hide")
+                RegisterStateDriver(button, "visibility", entry and "[combat][dead] hide; show" or "hide")
             end
         end
         if notifiedRevision ~= model.GetRevision() then

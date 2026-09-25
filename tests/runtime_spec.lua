@@ -874,7 +874,7 @@ for _, item in ipairs(frames) do
 end
 assert(sealChoice and sealChoice:GetChecked())
 sealChoice:SetChecked(false); sealChoice.scripts.OnClick(sealChoice)
-assert(ApogeeTankSealsDB.hidden[21084] and #ApogeeTankCooldownsDB.watched == 3)
+assert(ApogeeTankSealsDB.hidden[21084] and #ApogeeTankCooldownsDB.watched == 1)
 assert(named.ApogeeTankSealAction1.attributeDrivers.spell == "21082"
     and named.ApogeeTankSealAction2.stateDriver[2] == "hide")
 assert(not sealChoice:GetChecked(), "seal checklist lost unchecked row")
@@ -904,4 +904,21 @@ ClickMinimap("LeftButton"); Tick(0.1)
 sealChoice:SetChecked(true); sealChoice.scripts.OnClick(sealChoice)
 assert(not ApogeeTankSealsDB.hidden[21084]
     and named.ApogeeTankSealAction1.attributeDrivers.spell == "21084")
+local holyChoice, judgementChoice
+for _, item in ipairs(frames) do
+    if item.kind == "CheckButton" then
+        if item.icon.texture == 679 then holyChoice = item end
+        if item.icon.texture == 20271 then judgementChoice = item end
+    end
+end
+assert(holyChoice and judgementChoice and not holyChoice:GetChecked() and not judgementChoice:GetChecked())
+judgementChoice:SetChecked(true); judgementChoice.scripts.OnClick(judgementChoice)
+-- Rows can move when a cooldown is selected; find Holy Strike again.
+for _, item in ipairs(frames) do
+    if item.kind == "CheckButton" and item.icon.texture == 679 then holyChoice = item end
+end
+holyChoice:SetChecked(true); holyChoice.scripts.OnClick(holyChoice)
+assert(ApogeeTankCooldownsDB.watched[1].spellId == 679 and ApogeeTankCooldownsDB.watched[1].explicit
+    and ApogeeTankCooldownsDB.watched[2].spellId == 20271 and ApogeeTankCooldownsDB.watched[2].explicit
+    and ApogeeTankCooldownsDB.watched[3].spellId == 853, "explicit opt-ins failed to retain default order")
 print("Paladin seal checklist, preview visibility, independent cooldown clear and combat/zoning guards passed")

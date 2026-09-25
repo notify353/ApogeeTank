@@ -1,14 +1,17 @@
 local addon, combat, buttons = {}, true, {}
-addon.CooldownAPI = { TargetMacro = function(id)
-    if id == 679 then return "[harm,nodead] /cast Holy Strike; /targetenemy\n/cast Holy Strike" end
-end }
-local hostile = false
+assert(loadfile("Core/Access.lua"))("test", addon)
+assert(loadfile("Core/Cooldowns.lua"))("test", addon)
+C_Spell = {
+    IsSpellHarmful = function(id) return id == 679 end,
+    IsSpellHelpful = function() return false end,
+    GetSpellInfo = function() return {name = "Holy Strike"} end,
+}
+local guardedMacro = "/targetenemy [noharm][dead]\n/cast Holy Strike"
 local drivers = {}
 function RegisterAttributeDriver(button, key, text)
     assert(not combat)
     if key == "macrotext" then drivers[button] = { key = key, text = text } end
-    local keep, acquire = text:match("^%[harm,nodead%] (.-); (.+)$")
-    local value = keep and (hostile and keep or acquire) or text
+    local value = text
     if value == "nil" then value = nil else value = tonumber(value) or value end
     button:SetAttribute(key, value)
 end
@@ -41,11 +44,7 @@ update({ { spellId = 679 }, { spellId = 853 } })
 assert(#buttons == 2 and buttons[1].attributes.type1 == "macro"
     and buttons[1].attributes.unit == nil and buttons[2].attributes.unit == "target" and buttons[2].attributes.spell == 853)
 assert(buttons[2].point[4] == 94.5 and buttons[1].width == 22)
-hostile = true
-RegisterAttributeDriver(buttons[1], "macrotext", drivers[buttons[1]].text)
-assert(buttons[1].attributes.macrotext == "/cast Holy Strike", "living hostile target was cycled")
-hostile = false
-RegisterAttributeDriver(buttons[1], "macrotext", drivers[buttons[1]].text)
+assert(buttons[1].attributes.macrotext == guardedMacro, "target condition was cached outside the click")
 combat = true
 update({ { spellId = 20271 } })
 assert(buttons[1].attributes.spell == 679 and buttons[2].attributes.spell == 853)
@@ -80,12 +79,10 @@ if export and export ~= "" then
     local selected
     setfenv(resolver, { tonumber = tonumber, SecureCmdOptionParse = function() return selected end })
     buttons[1].GetAttribute = function(self, key) return self.attributes[key] end
-    -- Native resolver applies both complete payloads; conditional parsing remains simulated.
+    -- Native resolver stores one payload. Target conditions remain inside the
+    -- macro for click-time evaluation; the engine parser is not in the export.
     combat = false
-    selected = "/cast Holy Strike"
-    resolver()(buttons[1], "macrotext", drivers[buttons[1]].text)
-    assert(buttons[1].attributes.macrotext == selected)
-    selected = "/targetenemy\n/cast Holy Strike"
+    selected = guardedMacro
     resolver()(buttons[1], "macrotext", drivers[buttons[1]].text)
     assert(buttons[1].attributes.macrotext == selected)
     combat = true
@@ -113,8 +110,34 @@ if export and export ~= "" then
         SecureButton_GetModifiedAttribute = function(self, key) return self.attributes[key] end,
         C_Macro = { RunMacroText = function(text, mouse) cast = { text, mouse } end } })
     chunk()(buttons[1], "target", "LeftButton")
-    assert(cast[1] == "/targetenemy\n/cast Holy Strike" and cast[2] == "LeftButton")
+    assert(cast[1] == guardedMacro and cast[2] == "LeftButton")
 end
+-- Simulate native target predicates, not the unavailable engine parser. Keep
+-- the same payload across target changes and repeated failed cast attempts.
+local function Attempt(target, failure)
+    assert(buttons[1].attributes.macrotext == guardedMacro)
+    assert(failure == "cooldown" or failure == "range" or failure == nil)
+    local acquired = not target or not target.harm or target.dead == true
+    if acquired then target = {id = "acquired", harm = true, dead = false} end
+    return target, acquired
+end
+for _, fixture in ipairs({
+    {name = "living hostile", target = {id = "keep", harm = true}, acquire = false},
+    {name = "attackable neutral", target = {id = "keep", harm = true}, acquire = false},
+    {name = "dead hostile", target = {id = "dead", harm = true, dead = true}, acquire = true},
+    {name = "friendly", target = {id = "friend", harm = false}, acquire = true},
+    {name = "nonattackable", target = {id = "neutral", harm = false}, acquire = true},
+    {name = "missing", acquire = true},
+}) do
+    local target, acquired = Attempt(fixture.target)
+    assert(acquired == fixture.acquire, fixture.name .. " acquired incorrectly")
+    local retained = target
+    for attempt = 1, 20 do
+        target, acquired = Attempt(target, attempt % 2 == 0 and "cooldown" or "range")
+        assert(target == retained and not acquired, "repeated failed cast cycled " .. fixture.name)
+    end
+end
+print("Click-time acquisition policy covers invalid targets and repeated cooldown/range attempts")
 combat = false
 update({ { spellId = 20271 } })
 assert(buttons[1].attributes.spell == 20271 and buttons[2].visibility == "hide"

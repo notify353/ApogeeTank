@@ -2,6 +2,10 @@
 
 ## Unreleased — Forever only
 
+- Hide the complete seal strip during combat through native secure visibility; restore selected seals outside combat and suppress combat timer overlays/aura reads.
+- Gray verified hostile-target cooldowns when no target exists, retaining click-to-acquire and existing cooldown/range/resource visuals without dimming self/ground spells by range guesses.
+- Default Holy Strike and Judgement to unchecked while keeping them available in the cooldown picker; migrate recognizable old automatic selections and record explicit choices for reload/rank persistence.
+- Check offensive target acquisition at each click with native `[noharm][dead]`, retaining living attackable targets during rapid repeats and failed casts; preserve direct actions for dual-use, helpful or unclassified spells.
 - Order known Paladin defaults Holy Strike, Judgement, then Hammer of Justice, including later learning and recognized saved default sequences; preserve opt-outs, identifiable custom orders and non-default slots.
 - Add a Paladin Seals checklist beside cooldowns, with per-character family visibility opt-outs that survive ranks and reloads; keep native casting on shown seals, combat/zoning guards, and cooldown Clear independent.
 - Limit cooldown range notifications to the affected spell and skip unchanged seal-artwork writes, preserving synchronous updates and guarded aura reads.

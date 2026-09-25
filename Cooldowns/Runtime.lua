@@ -12,6 +12,7 @@ function addon.StartCooldowns(anchor, getGeometry)
     local inWorld = true
     local initializationFailed = false
     local changedHandler, notifiedRevision
+    local managedDefaultOrder
     local function UpdateStances()
         stances = addon.CooldownAPI.GetStanceSpells()
         for id in pairs(stances) do
@@ -39,22 +40,41 @@ function addon.StartCooldowns(anchor, getGeometry)
                 lastCurrent, lastPrevious = family.defaultOrder, family.previousDefaultOrder
             end
         end
+        if managedDefaultOrder == nil and #defaults > 0 then managedDefaultOrder = current or previous end
         for _, spell in ipairs(defaults) do
-            local ignored = false
+            local ignored = spell.defaultWatched == false
+            local explicit = false
             local choices = {}
             for _, entry in ipairs(model.GetEntries()) do
-                choices[entry.spellId] = entry.watched == true
+                choices[entry.spellId] = entry
             end
             -- Prefer the newest recorded rank's explicit choice. An older
             -- opt-out must not undo a subsequent recheck of its replacement.
             for index = #spell.ranks, 1, -1 do
-                local watched = choices[spell.ranks[index]]
-                if watched ~= nil then ignored = not watched; break end
+                local choice = choices[spell.ranks[index]]
+                if choice then
+                    explicit = choice.explicit == true
+                    if explicit or not choice.watched or spell.defaultWatched ~= false
+                        or managedDefaultOrder == false then
+                        ignored = not choice.watched
+                        -- Noncanonical legacy ordering is evidence of customization.
+                        if managedDefaultOrder == false then explicit = true end
+                    end
+                    break
+                end
             end
             model.Observe({ spell })
-            if ignored then model.SetWatched(spell.spellId, false) end
+            model.SetWatched(spell.spellId, not ignored, not explicit)
+            if ignored and spell.defaultWatched == false then
+                -- Historical ranks must not remain visible after the family
+                -- becomes default-off. Preserve any demonstrable explicit opt-in.
+                for _, rank in ipairs(spell.ranks) do
+                    local old = choices[rank]
+                    if old and old.watched and not old.explicit then model.SetWatched(rank, false, true) end
+                end
+            end
         end
-        if current or previous then
+        if managedDefaultOrder then
             local selected, ids = model.GetWatched(), {}
             for _, spell in ipairs(defaults) do
                 for _, entry in ipairs(selected) do
@@ -237,7 +257,7 @@ function addon.StartCooldowns(anchor, getGeometry)
         GetModel = function() return model end,
         SetChangedHandler = function(handler) changedHandler = handler end,
         -- Picker changes need fresh state; animation ticks only render caches.
-        Refresh = function() Sample(false) end,
+        Refresh = function() SeedDefaults(); Sample(false) end,
         Clear = function() candidates, states = {}, {}; Refresh() end,
     }
 end

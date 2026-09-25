@@ -15,14 +15,23 @@ function API.GetStanceSpells()
     return result
 end
 
+-- Native classification means cast-on-hostile-unit, not merely damage or range.
+-- Dual-use/helpful and unknown spells retain their original targeting behavior.
+local function IsHostileTargetSpell(id)
+    return C_Spell and Access.Call(C_Spell.IsSpellHarmful, id) == true
+        and Access.Call(C_Spell.IsSpellHelpful, id) == false
+end
+
 -- Compile only outside combat; native macro conditions handle target changes.
 function API.TargetMacro(id)
     if InCombatLockdown() or not C_Spell then return nil end
-    if Access.Call(C_Spell.IsSpellHarmful, id) ~= true then return nil end
+    if not IsHostileTargetSpell(id) then return nil end
     local info = Access.Call(C_Spell.GetSpellInfo, id)
     if not Access.Fields(info, { "name" }) or type(info.name) ~= "string"
         or info.name:find("[;\r\n]") then return nil end
-    return "[harm,nodead] /cast " .. info.name .. "; /targetenemy\n/cast " .. info.name
+    -- Evaluate acquisition at the click, not in a cached driver branch.
+    -- Failed casts (cooldown/range) must never cycle a living attackable target.
+    return "/targetenemy [noharm][dead]\n/cast " .. info.name
 end
 
 function API.Castable(id)
@@ -30,6 +39,7 @@ function API.Castable(id)
     local usable, insufficientPower = Access.Call(C_Spell.IsSpellUsable, id)
     local inRange = Access.Call(C_Spell.IsSpellInRange, id, "target")
     if usable == false or insufficientPower == true or inRange == false then return false end
+    if Access.Call(UnitExists, "target") == false and IsHostileTargetSpell(id) then return false end
     if usable == true then return true end
 end
 function API.WatchRange(id, enable)
@@ -127,7 +137,8 @@ function API.GetDefaultSpells()
                 local info = Access.Call(C_Spell.GetSpellInfo, id)
                 if Access.Fields(info, { "name", "iconID" }) and type(info.name) == "string" then
                     result[#result + 1] = { spellId = id, name = info.name, icon = info.iconID, ranks = ranks,
-                        defaultOrder = order, previousDefaultOrder = order == 2 and 3 or order == 3 and 2 or order }
+                        defaultWatched = order > 2, defaultOrder = order,
+                        previousDefaultOrder = order == 2 and 3 or order == 3 and 2 or order }
                 end
                 break
             end

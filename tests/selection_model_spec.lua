@@ -27,7 +27,7 @@ assert(#model.GetEntries() == 2 and #model.GetSaved().watched == 2,
 assert(model.SetWatched(a.spellId, true))
 assert(model.SetWatched(b.spellId, true))
 local saved = model.GetSaved()
-assert(saved.version == 2 and saved.watched[1].sourceUnit == nil
+assert(saved.version == 3 and saved.watched[1].sourceUnit == nil
     and saved.watched[1].applications == nil and saved.watched[1].expirationTime == nil)
 local restored = Model.Create(saved)
 assert(#restored.GetEntries() == 2 and restored.IsWatched(1001))
@@ -41,8 +41,16 @@ assert(not reloaded.IsWatched(1001), "observing an unchecked effect re-enabled i
 assert(reloaded.SetWatched(1001, true) and reloaded.IsWatched(1001)
     and #reloaded.GetSaved().ignored == 0, "explicit re-enable did not clear the exclusion")
 local legacy = Model.Create({ version = 1, watched = { a } })
-assert(legacy.IsWatched(1001) and legacy.GetSaved().version == 2,
+assert(legacy.IsWatched(1001) and legacy.GetSaved().version == 3,
     "old selected identities were not preserved")
+assert(not legacy.GetEntries()[1].explicit, "legacy automatic choice claimed explicit provenance")
+legacy.SetWatched(1001, true)
+assert(Model.Create(legacy.GetSaved()).GetEntries()[1].explicit,
+    "explicit opt-in provenance did not survive reload")
+local automatic = Model.Create(nil)
+automatic.Observe({a})
+automatic.SetWatched(1001, false, true)
+assert(not automatic.GetEntries()[1].explicit, "automatic default claimed user selection")
 local entries = restored.GetEntries()
 entries[1].name = "mutation"
 assert(restored.GetEntries()[1].name ~= "mutation", "view mutated persisted identity")

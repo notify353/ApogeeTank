@@ -61,3 +61,19 @@ Event("PLAYER_LEAVING_WORLD")
 Event("SPELL_RANGE_CHECK_UPDATE", 1)
 assert(usableReads == 112, "late range event queried APIs during zoning")
 print("Targeted range updates preserve immediate state, broad invalidation and zoning guards")
+
+local targetExists = true
+UnitExists = function() return targetExists end
+C_Spell.IsSpellHarmful = function(id) return id == 1 end
+C_Spell.IsSpellHelpful = function(id) return id == 2 end
+C_Spell.IsSpellInRange = function() rangeReads = rangeReads + 1; return targetExists and true or nil end
+Event("PLAYER_ENTERING_WORLD")
+local sampled = timerReads
+targetExists = false; Event("PLAYER_TARGET_CHANGED")
+assert(rendered[1].castable == false and rendered[2].castable == true and rendered[3].castable == true)
+targetExists = true; Event("PLAYER_TARGET_CHANGED")
+assert(rendered[1].castable == true and timerReads == sampled,
+    "target acquisition did not restore availability without polling timers")
+targetExists = false; Event("PLAYER_TARGET_CHANGED")
+assert(rendered[1].castable == false, "target loss left an offensive spell colored")
+print("Target acquisition/loss refreshes hostile availability while preserving self/ground spells")

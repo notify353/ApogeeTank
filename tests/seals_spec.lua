@@ -28,6 +28,7 @@ assert(#addon.SealAPI.Learn() == 3)
 class = "WARRIOR"; assert(#addon.SealAPI.Learn() == 0); class = "PALADIN"
 combat = true; assert(addon.SealAPI.Learn() == nil)
 local frames, named = {}, {}
+local nativeVisibility = false
 UIParent = {}
 function CreateFrame(kind, name, parent, template)
     local f = { scripts = {}, attributes = {} }
@@ -42,14 +43,16 @@ function CreateFrame(kind, name, parent, template)
     function f:SetDrawEdge() end
     function f:SetDrawBling() end
     function f:SetCountdownFont() end
-    function f:Hide() self.shown = false end
-    function f:SetShown(value) self.shown = value end
+    function f:Hide() assert(not name or not combat or nativeVisibility); self.shown = false end
+    function f:Show() assert(not name or not combat or nativeVisibility); self.shown = true end
+    function f:SetShown(value) assert(not name or not combat or nativeVisibility); self.shown = value end
     function f:SetCooldownFromDurationObject(value) self.durationObject = value end
     function f:SetCooldown(start, duration) self.timerWrites = (self.timerWrites or 0) + 1; self.start, self.duration = start, duration end
     function f:SetFrameStrata() end
     function f:SetFrameLevel() end
     function f:RegisterForClicks(value) self.clicks = value end
-    function f:SetAttribute(key, value) assert(not combat); self.attributes[key] = value end
+    function f:SetAttribute(key, value) assert(not combat or nativeVisibility); self.attributes[key] = value end
+    function f:GetAttribute(key) return self.attributes[key] end
     if name then
         assert(not combat and parent == UIParent and template == "SecureActionButtonTemplate")
         named[name] = f
@@ -87,6 +90,7 @@ assert(first.width == 22 and first.point[4] == 70.5 and first.point[5] == -21.5)
 assert(named.ApogeeTankSealAction2.point[4] == 94.5, "seal row spacing differs from cooldowns")
 assert(first.attributes.spell == 21084 and first.attributes.unit == "player")
 assert(first.attributes.type1 == "spell" and first.clicks == "LeftButtonUp")
+assert(first.visibility == "[combat][dead] hide; show", "seal visibility is not native combat-gated")
 first.scripts.OnEnter(first); assert(GameTooltip.id == 21084)
 first.scripts.OnLeave(first); assert(GameTooltip.owner == nil)
 combat = true; learnedFury = false
@@ -105,7 +109,7 @@ C_UnitAuras = {
     GetAuraDuration = function() return nil end,
 }
 aura = { spellId = 21084, auraInstanceID = 55, duration = 30, expirationTime = 130 }
-combat = true
+combat = false
 driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
 assert(first.timer.shown and first.timer.start == 100 and first.timer.duration == 30)
 assert(first.image.gray == false and named.ApogeeTankSealAction2.image.gray == true)
@@ -131,8 +135,10 @@ driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
 assert(first.timer.durationObject == object and first.timer.shown)
 restricted = true
 local before = reads
+combat = true
 driver.scripts.OnEvent(driver, "PLAYER_REGEN_DISABLED")
 assert(reads == before and not first.timer.shown and not named.ApogeeTankSealAction2.image.gray)
+combat = false
 restricted = false; aura = nil
 driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
 assert(not first.timer.shown and not first.image.gray)
@@ -192,3 +198,42 @@ local blocked = addon.StartSeals(addon.ThreatHud.GetSealGeometry)
 frames[frameIndex].scripts.OnEvent(frames[frameIndex], "PLAYER_LOGIN")
 assert(blocked.GetModel() == nil and ApogeeTankSealsDB == future)
 print("Seal HUD visibility, hidden active aura, guarded secure rebinding and runtime persistence passed")
+
+-- Execute the real exported visibility resolver; the engine condition parser
+-- is a fixture, while Show/Hide/statehidden dispatch is actual Blizzard Lua.
+local export = os.getenv("APOGEE_FOREVER_EXPORT")
+if export and export ~= "" then
+    local file = assert(io.open(export .. "/Blizzard_RestrictedAddOnEnvironment/SecureStateDriver.lua", "r"))
+    local source = file:read("*a"); file:close()
+    local body = assert(source:match("local function resolveDriver(.-)\nend"))
+    local chunk = assert(loadstring("return function" .. body .. "\nend"))
+    local dead = false
+    setfenv(chunk, {tonumber = tonumber, SecureCmdOptionParse = function(values)
+        assert(values == "hide" or values == "[combat][dead] hide; show")
+        return (values == "hide" or combat or dead) and "hide" or "show"
+    end})
+    local resolve = chunk()
+    local function Apply(button)
+        nativeVisibility = true
+        resolve(button, "state-visibility", button.visibility)
+        nativeVisibility = false
+    end
+    assert(selection.SetWatched(21084, true)); runtime.Refresh()
+    Apply(first)
+    assert(first.shown and not first.attributes.statehidden)
+    local spell, point = first.attributes.spell, first.point
+    combat = true; Apply(first)
+    local beforeReads = reads
+    driver.scripts.OnEvent(driver, "PLAYER_REGEN_DISABLED")
+    driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
+    assert(not first.shown and first.attributes.statehidden and not first.timer.shown
+        and reads == beforeReads and first.attributes.spell == spell and first.point == point)
+    combat = false
+    driver.scripts.OnEvent(driver, "PLAYER_REGEN_ENABLED"); Apply(first)
+    assert(first.shown and first.attributes.spell == spell and first.point == point)
+    Apply(named.ApogeeTankSealAction2)
+    assert(not named.ApogeeTankSealAction2.shown, "combat exit restored an unchecked seal")
+    dead = true; Apply(first); assert(not first.shown)
+    dead = false; Apply(first); assert(first.shown)
+    print("Exported native seal visibility hides in combat/death and restores selected OOC actions without insecure writes")
+end

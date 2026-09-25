@@ -50,7 +50,13 @@ assert(state.nativeDuration and state.coolingDown == nil and state.realCooldown 
     "non-cooldown event trusted potentially stale GCD classification")
 
 C_Spell.IsSpellHarmful = function() return true end
-assert(addon.CooldownAPI.TargetMacro(679) == "[harm,nodead] /cast Spell679; /targetenemy\n/cast Spell679")
+C_Spell.IsSpellHelpful = function() return false end
+assert(addon.CooldownAPI.TargetMacro(679) == "/targetenemy [noharm][dead]\n/cast Spell679")
+C_Spell.IsSpellHelpful = function() return true end
+assert(addon.CooldownAPI.TargetMacro(679) == nil, "dual-use spell acquired an enemy")
+C_Spell.IsSpellHelpful = function() return secret end
+assert(addon.CooldownAPI.TargetMacro(679) == nil, "unknown helpful classification acquired an enemy")
+C_Spell.IsSpellHelpful = function() return false end
 C_Spell.IsSpellHarmful = function() return false end
 assert(addon.CooldownAPI.TargetMacro(679) == nil, "helpful spell acquired an enemy")
 C_Spell.IsSpellHarmful = function() return secret end
@@ -145,7 +151,7 @@ local function Start(saved, spells)
     local frame = frames[firstFrame]
     local function Send(event) frame.scripts.OnEvent(frame, event) end
     Send("PLAYER_LOGIN")
-    return instance.GetModel(), Send
+    return instance.GetModel(), Send, instance.Refresh
 end
 local function AssertOrder(selection, ids)
     local entries = selection.GetWatched()
@@ -161,32 +167,48 @@ local function AssertOrder(selection, ids)
 end
 local allKnown = { [679] = true, [20271] = true, [853] = true,
     [26573] = true, [20925] = true, [407632] = true }
-local selection, send = Start(nil, allKnown)
+local selection, send, refresh = Start(nil, allKnown)
+AssertOrder(selection, {853, 26573, 20925, 407632})
+assert(#selection.GetEntries() == 6 and not selection.IsWatched(679) and not selection.IsWatched(20271))
+selection.SetWatched(20271, true); refresh()
+selection.SetWatched(679, true); refresh()
 AssertOrder(selection, {679, 20271, 853, 26573, 20925, 407632})
+selection, send = Start(selection.GetSaved(), allKnown)
+AssertOrder(selection, {679, 20271, 853, 26573, 20925, 407632})
+known[678] = true; send("SPELLS_CHANGED")
+assert(selection.IsWatched(678), "new Holy Strike rank lost explicit opt-in")
+allKnown[678] = nil
+local legacyRanks = Saved({679, 678, 20271, 853})
+allKnown[678] = true
+selection = Start(legacyRanks, allKnown)
+assert(not selection.IsWatched(679) and not selection.IsWatched(678)
+    and not selection.IsWatched(20271), "legacy automatic ranks remained default-on")
+assert(legacyRanks.version == 2 and #legacyRanks.watched == 4, "loader mutated supplied legacy data")
+allKnown[678] = nil
 selection, send = Start(Saved({679, 999, 853, 20271, 26573, 20925, 407632}), allKnown)
-AssertOrder(selection, {679, 999, 20271, 853, 26573, 20925, 407632})
+AssertOrder(selection, {999, 853, 26573, 20925, 407632})
 local unchangedRevision = selection.GetRevision()
 send("PLAYER_REGEN_ENABLED")
 assert(selection.GetRevision() == unchangedRevision, "stable defaults caused repeated changes")
 selection, send = Start(nil, { [679] = true })
-AssertOrder(selection, {679})
+AssertOrder(selection, {})
 known[853] = true; send("SPELLS_CHANGED")
-AssertOrder(selection, {679, 853})
+AssertOrder(selection, {853})
 known[20271] = true; send("SPELLS_CHANGED")
-AssertOrder(selection, {679, 20271, 853})
+AssertOrder(selection, {853})
 selection = Start(selection.GetSaved(), known)
-AssertOrder(selection, {679, 20271, 853})
+AssertOrder(selection, {853})
 selection = Start(Saved({853, 679, 20271}), allKnown)
 AssertOrder(selection, {853, 679, 20271, 26573, 20925, 407632})
 selection = Start(Saved({679, 853}, {20271}), allKnown)
-AssertOrder(selection, {679, 853, 26573, 20925, 407632})
+AssertOrder(selection, {853, 26573, 20925, 407632})
 assert(not selection.IsWatched(20271), "ordering discarded Judgement opt-out")
 selection, send = Start(Saved({679, 853, 20271}), allKnown)
 combat = true
 known[678] = true; send("SPELLS_CHANGED")
-AssertOrder(selection, {679, 20271, 853, 26573, 20925, 407632})
+AssertOrder(selection, {853, 26573, 20925, 407632})
 combat = false; send("PLAYER_REGEN_ENABLED")
-assert(selection.IsWatched(678), "out-of-combat rank discovery failed")
+assert(not selection.IsWatched(678), "new rank discarded default-off choice")
 class = "WARRIOR"
 selection = Start(Saved({999, 853, 679}), {})
 AssertOrder(selection, {999, 853, 679})
