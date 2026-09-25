@@ -145,6 +145,7 @@ for _, dimensions in ipairs({{120,120,80}, {140,140,90}, {200,200,120}, {120,200
         and ApogeeTankUIDB.minimapAngle == nil, "fresh Tank default geometry changed or was persisted")
     local positions = {}
     local spacing = DefaultAngle(dimensions[3]) - 220
+    -- Screenshot artwork order: Heals upper-left, Keybinds middle, Tank lower-right.
     for _, degrees in ipairs({220 - spacing, 220, 220 + spacing}) do
         positions[#positions + 1] = PointAt(degrees, dimensions[1], dimensions[2])
     end
