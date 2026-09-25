@@ -74,7 +74,7 @@ button.scripts.OnDragStart()
 assert(button.scripts.OnUpdate)
 cursorX, cursorY = 200, 400 -- screen coordinates, scale two: directly above center
 button.scripts.OnUpdate()
-assert(math.abs(button.point[4]) < 0.001 and button.point[5] == 90, "scaled cursor produced wrong session angle")
+assert(math.abs(button.point[4]) < 0.001 and button.point[5] == 86, "scaled cursor produced wrong session angle")
 assert(ApogeeTankUIDB == nil, "drag created saved data")
 local saved = ApogeeTankUIDB
 GameTooltip.owner, GameTooltip.shown = {}, true
@@ -124,17 +124,17 @@ local function PointAt(degrees, width, height)
     b.scripts.OnUpdate()
     b.scripts.OnDragStop()
     local x, y = b.point[4], b.point[5]
-    local radius = math.max(width, height) / 2 + 20
+    local radius = math.max(width, height) / 2 + 16
     assert(math.abs(math.sqrt(x * x + y * y) - radius) < 0.00001,
         "minimap orbit did not maintain constant circular radius")
     assert(math.abs(x - radius * math.cos(math.rad(degrees))) < 0.00001
         and math.abs(y - radius * math.sin(math.rad(degrees))) < 0.00001,
         "minimap placement changed the requested angle")
-    assert(radius - math.max(width, height) / 2 - 16 >= 4, "button lost circular rim clearance")
+    assert(math.abs(radius - math.max(width, height) / 2 - 16) < 0.00001, "nominal button circle is not tangent to minimap rim")
     assert(ApogeeTankUIDB.minimapAngle == degrees, "session drag rewrote historical data")
     return {x, y}
 end
-for _, dimensions in ipairs({{120,120,80}, {140,140,90}, {200,200,120}, {120,200,120}, {200,120,120}, {300,100,170}, {100,300,170}, {400,400,220}}) do
+for _, dimensions in ipairs({{120,120,76}, {140,140,86}, {200,200,116}, {120,200,116}, {200,120,116}, {300,100,166}, {100,300,166}, {400,400,216}}) do
     for _, degrees in ipairs({0, 12, 45, 90, 135, 180, 225, 270, 315, 333, -30, 732}) do
         local point = PointAt(degrees, dimensions[1], dimensions[2])
         assert(math.abs(math.sqrt(point[1]^2 + point[2]^2) - dimensions[3]) < 0.00001)
@@ -168,8 +168,8 @@ mapWidth, mapHeight = 400, 300
 Minimap.scripts.OnSizeChanged(Minimap)
 assert(nativeSizes == previousNative + 1 and button.point ~= oldPoint,
     "resize hook replaced native handler or failed to reposition")
-assert(math.abs(button.point[4] - 220 * math.cos(math.rad(235))) < 0.00001
-    and math.abs(button.point[5] - 220 * math.sin(math.rad(235))) < 0.00001,
+assert(math.abs(button.point[4] - 216 * math.cos(math.rad(235))) < 0.00001
+    and math.abs(button.point[5] - 216 * math.sin(math.rad(235))) < 0.00001,
     "undragged default did not adapt to resized reference cluster")
 oldPoint = button.point
 combat = true; mapWidth = 500; Minimap.scripts.OnSizeChanged(Minimap)
@@ -203,7 +203,7 @@ button.scripts.OnUpdate(); assert(ApogeeTankUIDB.minimapAngle == nil)
 cursorX, cursorY, mapScale = 200, 400, 0
 button.scripts.OnUpdate(); assert(ApogeeTankUIDB.minimapAngle == nil)
 mapScale = 2; button.scripts.OnUpdate()
-assert(ApogeeTankUIDB.minimapAngle == nil and math.abs(button.point[4]) < 0.00001 and button.point[5] == 90)
+assert(ApogeeTankUIDB.minimapAngle == nil and math.abs(button.point[4]) < 0.00001 and button.point[5] == 86)
 button.scripts.OnDragStop(); button.scripts.OnClick(button, "LeftButton")
 assert(toggles == oldToggles and not button.scripts.OnUpdate, "drag release triggered a click")
 button.scripts.OnMouseDown(button, "LeftButton"); button.scripts.OnClick(button, "LeftButton")
@@ -233,7 +233,7 @@ centerX = nil; button.scripts.OnUpdate(); assert(ApogeeTankUIDB.minimapAngle == 
 centerX = 100; mapScale = restricted; button.scripts.OnUpdate(); assert(ApogeeTankUIDB.minimapAngle == nil)
 mapScale = 2; cursorX = restricted; button.scripts.OnUpdate(); assert(ApogeeTankUIDB.minimapAngle == nil)
 cursorX, cursorY = 200, 400; button.scripts.OnUpdate()
-assert(ApogeeTankUIDB.minimapAngle == nil and math.abs(button.point[4]) < 0.00001 and button.point[5] == 90,
+assert(ApogeeTankUIDB.minimapAngle == nil and math.abs(button.point[4]) < 0.00001 and button.point[5] == 86,
     "valid session drag did not recover after restricted inputs")
 cursorX, cursorY = 0, 200 -- candidate180 must not persist or replace last valid90
 oldPoint = button.point
@@ -248,7 +248,7 @@ assert(ApogeeTankUIDB.minimapAngle == nil and button.point == oldPoint,
     "invalid dimensions persisted failed drag placement")
 button.scripts.OnDragStop()
 mapWidth = 140; Event("UI_SCALE_CHANGED")
-assert(math.abs(button.point[4]) < 0.00001 and button.point[5] == 90
+assert(math.abs(button.point[4]) < 0.00001 and button.point[5] == 86
     and ApogeeTankUIDB.minimapAngle == nil, "failed drag replaced the remembered session angle")
 print("Restricted frame level, dimensions, center, scale and cursor inputs defer safely")
 
@@ -257,12 +257,12 @@ button = Fresh(135, 140, 140)
 button.scripts.OnDragStart(); cursorX, cursorY = 200, 400; button.scripts.OnUpdate(); button.scripts.OnDragStop()
 mapWidth = 200; Minimap.scripts.OnSizeChanged(Minimap)
 Event("PLAYER_LEAVING_WORLD"); Event("PLAYER_ENTERING_WORLD")
-assert(math.abs(button.point[4]) < 0.00001 and button.point[5] == 120
+assert(math.abs(button.point[4]) < 0.00001 and button.point[5] == 116
     and ApogeeTankUIDB.minimapAngle == 135, "session angle lost on resize/zoning or saved field mutated")
 frames, named = {}, {}; Start(); Event("PLAYER_LOGIN")
 button = named.ApogeeTankMinimapButton
-assert(math.abs(button.point[4] - 120 * math.cos(math.rad(DefaultAngle(120)))) < 0.00001
-    and math.abs(button.point[5] - 120 * math.sin(math.rad(DefaultAngle(120)))) < 0.00001
+assert(math.abs(button.point[4] - 116 * math.cos(math.rad(DefaultAngle(116)))) < 0.00001
+    and math.abs(button.point[5] - 116 * math.sin(math.rad(DefaultAngle(116)))) < 0.00001
     and ApogeeTankUIDB.minimapAngle == 135, "reload reused drag or changed historical data")
 -- Any accidental read/write of the old saved field fails, including during drag.
 frames, named = {}, {}

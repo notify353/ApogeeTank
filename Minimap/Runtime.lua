@@ -19,7 +19,7 @@ function addon.StartMinimap(picker)
         local level = Minimap:GetFrameLevel()
         if not Finite(level) or level < 0 then return end
         -- Keep a circular orbit, using the larger dimension for rectangular minimaps.
-        local radius = math.max(width, height) / 2 + 20
+        local radius = math.max(width, height) / 2 + 16
         -- Default family cluster centers on220;46-unit chords keep32-unit buttons apart.
         local spacing = math.max(15, math.deg(2 * math.asin(math.min(1, 46 / (2 * radius)))))
         local radians = math.rad(angle or (220 + spacing))

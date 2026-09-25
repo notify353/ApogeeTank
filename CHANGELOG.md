@@ -2,7 +2,7 @@
 
 ## Unreleased — Forever only
 
-- Align Tank's minimap button with the shared outside-rim family placement at default190 degrees; preserve dragged angles, adapt to bounds/scale changes, and suppress post-drag clicks without idle polling.
+- Place Tank's native shield at the lower-right end of the evenly spaced circular minimap cluster (Heals, Keybinds, Tank). Use radius=max(width,height)/2+16 for nominal 32-unit circle tangency; painted border alignment still needs live acceptance. Restore adaptive defaults on reload, keep dragging session-only without reading or changing historical angles, and preserve resize/combat/zoning/click guards without idle polling.
 - Restore Holy Strike and Judgement default-on in HS/J/HoJ order, re-enabling automatic-off choices while preserving recorded user opt-outs.
 - Order enabled learned seals Fury, Righteousness, Crusader, then other families; retain Crusader default-off and add Devotion-style TANK/DPS native-tooltip footers.
 - Default Seal of the Crusader to unchecked while keeping its checkbox available; seal schema 2 preserves explicit family opt-ins and opt-outs through ranks and reloads.
