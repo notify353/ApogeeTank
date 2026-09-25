@@ -199,5 +199,19 @@ centerX = 100; mapScale = restricted; button.scripts.OnUpdate(); assert(ApogeeTa
 mapScale = 2; cursorX = restricted; button.scripts.OnUpdate(); assert(ApogeeTankUIDB.minimapAngle == nil)
 cursorX, cursorY = 200, 400; button.scripts.OnUpdate()
 assert(ApogeeTankUIDB.minimapAngle == 90, "valid drag did not recover after restricted inputs")
+cursorX, cursorY = 0, 200 -- candidate180 must not persist or replace last valid90
+oldPoint = button.point
+mapFrameLevel = restricted; button.scripts.OnUpdate()
+assert(ApogeeTankUIDB.minimapAngle == 90 and button.point == oldPoint,
+    "restricted frame level persisted failed drag placement")
+mapFrameLevel = 1; mapWidth = restricted; button.scripts.OnUpdate()
+assert(ApogeeTankUIDB.minimapAngle == 90 and button.point == oldPoint,
+    "restricted dimensions persisted failed drag placement")
+mapWidth = 0; button.scripts.OnUpdate()
+assert(ApogeeTankUIDB.minimapAngle == 90 and button.point == oldPoint,
+    "invalid dimensions persisted failed drag placement")
 button.scripts.OnDragStop()
+mapWidth = 140; Event("UI_SCALE_CHANGED")
+assert(math.abs(button.point[4]) < 0.00001 and button.point[5] == 110
+    and ApogeeTankUIDB.minimapAngle == 90, "failed drag replaced the remembered placement angle")
 print("Restricted frame level, dimensions, center, scale and cursor inputs defer safely")

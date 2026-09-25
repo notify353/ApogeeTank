@@ -30,6 +30,7 @@ function addon.StartMinimap(picker)
         button:SetPoint("CENTER", Minimap, "CENTER", radius * c, radius * s)
         pendingPosition = false
         button:Show()
+        return true
     end
     local function HideTooltip()
         if button and GameTooltip:IsOwned(button) then GameTooltip:Hide() end
@@ -89,10 +90,11 @@ function addon.StartMinimap(picker)
                 if not Finite(cursorX) or not Finite(cursorY) then return end
                 local dx, dy = cursorX / scale - x, cursorY / scale - y
                 if not Finite(dx) or not Finite(dy) or (dx == 0 and dy == 0) then return end
+                local previousAngle = angle
                 angle = math.deg(math.atan2(dy, dx)) % 360
-                ApogeeTankUIDB.minimapAngle = angle
                 pendingPosition = true
-                Position()
+                if Position() then ApogeeTankUIDB.minimapAngle = angle
+                else angle = previousAngle end
             end)
         end)
         button:SetScript("OnDragStop", StopDrag)
