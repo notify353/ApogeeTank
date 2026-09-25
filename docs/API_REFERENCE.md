@@ -77,8 +77,11 @@ permissions or FPS. Remaining in-client checks include combat reload, marker
 permissions, cooldown/charge completion and targeting, aura click activation,
 seal switching/expiration, flicker and coexistence with other addons. Reported
 combat seal detection remains unconfirmed; neutral clickable seals are the
-fallback. Requested changes include local Forever installation after checks and
-backup verification; release and publication remain separately authorized.
+fallback. Requested source changes use the central Apogee Forever DEV builder
+and installer after checks and backup verification. Follow
+`C:/Dev/WoW/ApogeePartyHealthBars/distribution/DUAL_WORKFLOW.md`; never overwrite
+PROD with a child checkout. Documentation-only changes do not repin or reinstall
+runtime. Release and publication remain separately authorized.
 
 ## Historical diagnostic records
 
