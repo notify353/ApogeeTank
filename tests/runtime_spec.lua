@@ -873,6 +873,16 @@ for _, item in ipairs(frames) do
     if item.text == "Preview" and item.parent.parent == paladinPicker then paladinPreview = item.parent end
 end
 assert(sealChoice and sealChoice:GetChecked())
+assert(ApogeeTankSealsDB.hidden[21082] == true and not named.ApogeeTankSealAction2,
+    "fresh Crusader default created a HUD action")
+local crusaderChoice
+for _, item in ipairs(frames) do
+    if item.kind == "CheckButton" and item.icon.texture == 21082 then crusaderChoice = item end
+end
+assert(crusaderChoice and not crusaderChoice:GetChecked(), "Crusader opt-in checkbox is unavailable")
+crusaderChoice:SetChecked(true); crusaderChoice.scripts.OnClick(crusaderChoice)
+assert(ApogeeTankSealsDB.hidden[21082] == false and named.ApogeeTankSealAction2,
+    "explicit Crusader opt-in did not save or show its secure action")
 sealChoice:SetChecked(false); sealChoice.scripts.OnClick(sealChoice)
 assert(ApogeeTankSealsDB.hidden[21084] and #ApogeeTankCooldownsDB.watched == 1)
 assert(named.ApogeeTankSealAction1.attributeDrivers.spell == "21082"

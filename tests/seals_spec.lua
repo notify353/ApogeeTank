@@ -80,6 +80,7 @@ GameTooltip = {
 }
 assert(loadfile("Seals/Runtime.lua"))("test", addon)
 assert(loadfile("Seals/Selection.lua"))("test", addon)
+ApogeeTankSealsDB = {version = 2, hidden = {[21082] = false}}
 local runtime = addon.StartSeals(addon.ThreatHud.GetSealGeometry)
 local driver = frames[1]
 driver.scripts.OnEvent(driver, "PLAYER_LOGIN")

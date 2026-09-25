@@ -2,6 +2,7 @@
 
 ## Unreleased — Forever only
 
+- Default Seal of the Crusader to unchecked while keeping its checkbox available; seal schema 2 preserves explicit family opt-ins and opt-outs through ranks and reloads.
 - Hide the complete seal strip during combat through native secure visibility; restore selected seals outside combat and suppress combat timer overlays/aura reads.
 - Gray verified hostile-target cooldowns when no target exists, retaining click-to-acquire and existing cooldown/range/resource visuals without dimming self/ground spells by range guesses.
 - Default Holy Strike and Judgement to unchecked while keeping them available in the cooldown picker; migrate recognizable old automatic selections and record explicit choices for reload/rank persistence.

@@ -1,20 +1,25 @@
 local _, addon = ...
 addon.SealSelection = {}
 
--- Persist family opt-outs only. Learned ranks and artwork stay session-local.
+-- Persist family choices: true hides, false explicitly shows, nil uses defaults.
+-- Learned ranks and artwork stay session-local.
 function addon.SealSelection.Create(saved, canConfigure)
     local version = type(saved) == "table" and tonumber(saved.version)
-    if version and version > 1 then
+    if version and version > 2 then
         return nil, "Saved seal data is newer than this addon; your data was preserved."
     end
-    local store, entries, revision = { version = 1, hidden = {} }, {}, 0
+    local store, entries, revision = { version = 2, hidden = {} }, {}, 0
     if type(saved) == "table" and type(saved.hidden) == "table" then
         for id, hidden in pairs(saved.hidden) do
-            if type(id) == "number" and id > 0 and id == math.floor(id) and hidden == true then
-                store.hidden[id] = true
+            if type(id) == "number" and id > 0 and id == math.floor(id)
+                and (hidden == true or (version == 2 and hidden == false)) then
+                store.hidden[id] = hidden
             end
         end
     end
+    -- Schema 1 erased opt-in provenance. An absent Crusader choice therefore
+    -- migrates to the new default; schema 2 explicit opt-ins remain visible.
+    if store.hidden[21082] == nil then store.hidden[21082] = true end
     local self = {}
     function self.GetSaved() return store end
     function self.GetRevision() return revision end
@@ -43,7 +48,7 @@ function addon.SealSelection.Create(saved, canConfigure)
         if not canConfigure() then return false, "Seal choices can only change outside combat." end
         for _, entry in ipairs(entries) do
             if entry.spellId == id then
-                local hidden = not value or nil
+                local hidden = not value
                 if store.hidden[entry.familyId] ~= hidden then
                     store.hidden[entry.familyId] = hidden
                     revision = revision + 1
