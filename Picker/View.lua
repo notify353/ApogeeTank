@@ -23,12 +23,13 @@ local function Tooltip(frame, effect, note)
     frame:SetScript("OnHide", function() HideTooltip(frame) end)
 end
 
--- The picker consumes cooldown selection operations, not private HUD frames.
+-- The picker consumes feature selection operations, not private HUD frames.
 function View.Create(options)
     local cooldowns = options.Cooldowns
+    local seals = options.Seals
     local onChanged = options.OnChanged
     local canConfigure = options.CanConfigure
-    local self, column = {}, nil
+    local self, columns = {}, {}
     local window, preview
     local PREVIEW_HEIGHT = 120
     local RefreshWindow
@@ -75,7 +76,7 @@ function View.Create(options)
                 end
                 local _, reason = model.SetWatched(effect.spellId, button:GetChecked())
                 onChanged()
-                cooldowns.Refresh()
+                column.runtime.Refresh()
                 RefreshWindow()
                 if reason then ShowTooltip(button, effect, reason) end
             end)
@@ -87,15 +88,18 @@ function View.Create(options)
     end
     RefreshWindow = function()
         if not window or not window:IsShown() then return end
-        if column then RefreshColumn(column) end
+        for _, column in ipairs(columns) do RefreshColumn(column) end
         if preview then preview.Refresh() end
     end
     local function Disarm(column)
+        if not column.confirm then return end
         column.confirm:Hide()
         column.clear:SetText("Clear")
     end
-    local function BuildColumn(title, columnModel, left)
-        column = { model = columnModel, rows = {} }
+    local function BuildColumn(title, runtime, left, allowClear)
+        local columnModel = runtime.GetModel()
+        local column = { model = columnModel, runtime = runtime, rows = {} }
+        columns[#columns + 1] = column
         local header = CreateFrame("Frame", nil, window)
         header:SetPoint("TOPLEFT", window, "TOPLEFT", left, -14 - PREVIEW_HEIGHT)
         header:SetSize(286, Style.headerHeight)
@@ -114,6 +118,7 @@ function View.Create(options)
         column.empty:SetPoint("TOPLEFT", content, "TOPLEFT", 4, -8)
         column.empty:SetText("None learned")
         column.empty:SetTextColor(unpack(Style.mutedColor))
+        if not allowClear then return end
         local clear = CreateFrame("Button", "ApogeeTank" .. title .. "Clear", window, "UIPanelButtonTemplate")
         clear:SetSize(72, Style.buttonHeight)
         clear:SetPoint("BOTTOMLEFT", window, "BOTTOMLEFT", left, 14)
@@ -133,7 +138,7 @@ function View.Create(options)
             if not confirm:IsShown() or (canConfigure and not canConfigure()) then return end
             columnModel.Clear()
             Disarm(column)
-            cooldowns.Clear()
+            runtime.Clear()
             scroll:SetVerticalScroll(0)
             RefreshWindow()
         end)
@@ -141,7 +146,8 @@ function View.Create(options)
     local function BuildWindow()
         if window then return end
         window = CreateFrame("Frame", "ApogeeTankPickerWindow", UIParent, "BackdropTemplate")
-        local width, height = 340, 312 + PREVIEW_HEIGHT
+        local sealModel = seals and seals.GetModel()
+        local width, height = sealModel and 662 or 340, 312 + PREVIEW_HEIGHT
         local scale = math.min(Style.GetScale(), (UIParent:GetWidth() - 24) / width,
             (UIParent:GetHeight() - 24) / height)
         window:SetScale(scale)
@@ -159,7 +165,7 @@ function View.Create(options)
         window:SetScript("OnShow", function() if preview then preview.SetShown(true) end end)
         window:SetScript("OnHide", function()
             window:StopMovingOrSizing()
-            if column then
+            for _, column in ipairs(columns) do
                 Disarm(column)
                 for _, row in ipairs(column.rows) do HideTooltip(row); HideTooltip(row.hover) end
             end
@@ -171,13 +177,15 @@ function View.Create(options)
         window:SetBackdropBorderColor(unpack(Style.borderColor))
         preview = addon.CreatePickerPreview(window, {
             Cooldowns = cooldowns.GetModel(),
+            Seals = sealModel,
         })
         local close = CreateFrame("Button", nil, window, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", window, "TOPRIGHT", -2, -2)
         close:SetScript("OnClick", function() window:Hide() end)
         if cooldowns and cooldowns.GetModel() then
-            BuildColumn("Cooldowns", cooldowns.GetModel(), 18)
+            BuildColumn("Cooldowns", cooldowns, 18, true)
         end
+        if sealModel then BuildColumn("Seals", seals, 340, false) end
         UISpecialFrames = UISpecialFrames or {}
         UISpecialFrames[#UISpecialFrames + 1] = "ApogeeTankPickerWindow"
         window:Hide()

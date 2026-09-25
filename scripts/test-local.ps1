@@ -14,8 +14,8 @@ try {
         throw 'No account-wide settings or other addon dependencies are allowed.'
     }
     if (@($toc | Where-Object { $_ -match '^## SavedVariablesPerCharacter:' }).Count -ne 1 -or
-        $toc -notcontains '## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB, ApogeeTankUIDB') {
-        throw 'Only character watch lists and minimap placement may be persisted.'
+        $toc -notcontains '## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB, ApogeeTankUIDB, ApogeeTankSealsDB') {
+        throw 'Only character watch lists, seal visibility and minimap placement may be persisted.'
     }
     foreach ($line in $toc) {
         if ($line -match '^[^#].*\.lua$' -and -not (Test-Path -LiteralPath $line)) {

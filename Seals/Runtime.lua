@@ -5,6 +5,22 @@ function addon.StartSeals(getGeometry)
         if GameTooltip and GameTooltip:IsOwned(button) then GameTooltip:Hide() end
     end
     local inWorld = true
+    local model, initialized, changedHandler, notifiedRevision
+    local function CanConfigure()
+        return inWorld and not InCombatLockdown()
+            and (not UnitAffectingCombat or not UnitAffectingCombat("player"))
+    end
+    local function Initialize()
+        if initialized then return end
+        local _, class = addon.Access.Call(UnitClass, "player")
+        if not class then return end
+        initialized = true
+        if class ~= "PALADIN" then return end
+        local reason
+        model, reason = addon.SealSelection.Create(ApogeeTankSealsDB, CanConfigure)
+        if model then ApogeeTankSealsDB = model.GetSaved()
+        else print("Apogee Tank: Seal selection disabled. " .. reason) end
+    end
     local function Paint()
         local state = inWorld and addon.Access.Call(UnitIsDeadOrGhost, "player") == false
             and addon.SealAPI.Active(addon.SealEntries or {}) or nil
@@ -34,10 +50,18 @@ function addon.StartSeals(getGeometry)
         end
     end
     local function Refresh()
+        Initialize()
+        if not model then return end
         if InCombatLockdown() then return end
-        local entries = addon.SealAPI.Learn()
-        if not entries then return end
-        addon.SealEntries = entries
+        local learned = addon.SealAPI.Learn()
+        if not learned then return end
+        model.Reconcile(learned)
+        -- Hidden seals still identify the active aura, but never get HUD actions.
+        addon.SealEntries = learned
+        local entries = {}
+        for _, entry in ipairs(model.GetEntries()) do
+            if entry.watched then entries[#entries + 1] = entry end
+        end
         for index = 1, math.max(#entries, #buttons) do
             local entry, button = entries[index], buttons[index]
             if entry and not button then
@@ -88,6 +112,10 @@ function addon.StartSeals(getGeometry)
                 RegisterStateDriver(button, "visibility", entry and "[dead] hide; show" or "hide")
             end
         end
+        if notifiedRevision ~= model.GetRevision() then
+            notifiedRevision = model.GetRevision()
+            if changedHandler then changedHandler() end
+        end
     end
     driver:SetScript("OnEvent", function(_, event, unit)
         if event == "PLAYER_LEAVING_WORLD" then inWorld = false; Paint(); return end
@@ -104,4 +132,9 @@ function addon.StartSeals(getGeometry)
         "PLAYER_REGEN_DISABLED", "UNIT_AURA", "PLAYER_LEAVING_WORLD", "PLAYER_DEAD", "PLAYER_ALIVE", "PLAYER_UNGHOST" }) do
         driver:RegisterEvent(event)
     end
+    return {
+        GetModel = function() return model end,
+        SetChangedHandler = function(handler) changedHandler = handler end,
+        Refresh = function() if CanConfigure() then Refresh(); Paint() end end,
+    }
 end

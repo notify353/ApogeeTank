@@ -839,3 +839,69 @@ lockdown, combat = false, false
 Event("PLAYER_REGEN_ENABLED")
 assert(named.ApogeeTankTargetMarkerButton, "deferred secure marking setup did not recover")
 print("Secure marker attributes, target guard, layout and deferred setup passed")
+
+-- Paladin picker: both lists share guards, but only cooldowns have Clear.
+frames, named, driver = {}, {}, nil
+classToken = "PALADIN"
+ApogeeTankSealsDB, ApogeeTankCooldownsDB = nil, nil
+local sealBook = {
+    {spellID = 21084, name = "Seal of Righteousness", iconID = 21084},
+    {spellID = 21082, name = "Seal of the Crusader", iconID = 21082},
+}
+Enum = {SpellBookSpellBank = {Player = 0}}
+C_Spell.GetSpellInfo = function(id)
+    for _, seal in ipairs(sealBook) do
+        if seal.spellID == id then return {name = seal.name, iconID = seal.iconID} end
+    end
+    return {name = "Spell" .. id, iconID = id}
+end
+C_SpellBook = {
+    GetNumSpellBookSkillLines = function() assert(not InCombatLockdown()); return 1 end,
+    GetSpellBookSkillLineInfo = function() return {itemIndexOffset = 0, numSpellBookItems = #sealBook} end,
+    GetSpellBookItemInfo = function(slot) return sealBook[slot] end,
+    IsSpellKnown = function(id) return id == 21084 or id == 21082 or id == 679 or id == 853 or id == 20271 end,
+}
+addon = LoadAddon()
+Event("PLAYER_LOGIN"); Tick(0.1)
+ClickMinimap("LeftButton"); Tick(0.1)
+local paladinPicker = named.ApogeeTankPickerWindow
+assert(paladinPicker.width == 662 and paladinPicker:IsShown())
+assert(named.ApogeeTankCooldownsClear and not named.ApogeeTankSealsClear)
+local sealChoice, paladinPreview
+for _, item in ipairs(frames) do
+    if item.kind == "CheckButton" and item.icon.texture == 21084 then sealChoice = item end
+    if item.text == "Preview" and item.parent.parent == paladinPicker then paladinPreview = item.parent end
+end
+assert(sealChoice and sealChoice:GetChecked())
+sealChoice:SetChecked(false); sealChoice.scripts.OnClick(sealChoice)
+assert(ApogeeTankSealsDB.hidden[21084] and #ApogeeTankCooldownsDB.watched == 3)
+assert(named.ApogeeTankSealAction1.attributeDrivers.spell == "21082"
+    and named.ApogeeTankSealAction2.stateDriver[2] == "hide")
+assert(not sealChoice:GetChecked(), "seal checklist lost unchecked row")
+for _, item in ipairs(frames) do
+    if item.image and item.image.texture == 21084 then
+        local parent = item.parent
+        while parent and parent ~= paladinPreview do parent = parent.parent end
+        assert(not parent or not item:IsShown(), "preview showed an unchecked seal")
+    end
+end
+Capture("Paladin spell picker", frames, true)
+named.ApogeeTankCooldownsClear.scripts.OnClick()
+named.ApogeeTankCooldownsConfirmClear.scripts.OnClick()
+assert(ApogeeTankSealsDB.hidden[21084], "cooldown clear reset seal visibility")
+combat = true; Event("PLAYER_REGEN_DISABLED")
+assert(not paladinPicker:IsShown() and not paladinPreview:IsShown())
+sealChoice:SetChecked(true); sealChoice.scripts.OnClick(sealChoice)
+assert(ApogeeTankSealsDB.hidden[21084] and not sealChoice:GetChecked())
+combat = false; Event("PLAYER_REGEN_ENABLED"); Tick(0.1)
+ClickMinimap("LeftButton"); Tick(0.1)
+Event("PLAYER_LEAVING_WORLD")
+assert(not paladinPicker:IsShown())
+sealChoice:SetChecked(true); sealChoice.scripts.OnClick(sealChoice)
+assert(ApogeeTankSealsDB.hidden[21084])
+Event("PLAYER_ENTERING_WORLD"); Tick(0.1)
+ClickMinimap("LeftButton"); Tick(0.1)
+sealChoice:SetChecked(true); sealChoice.scripts.OnClick(sealChoice)
+assert(not ApogeeTankSealsDB.hidden[21084]
+    and named.ApogeeTankSealAction1.attributeDrivers.spell == "21084")
+print("Paladin seal checklist, preview visibility, independent cooldown clear and combat/zoning guards passed")

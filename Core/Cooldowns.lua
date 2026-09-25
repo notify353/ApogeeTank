@@ -117,8 +117,8 @@ function API.GetDefaultSpells()
     if class ~= "PALADIN" or not C_SpellBook or not C_Spell or not Enum
         or not Enum.SpellBookSpellBank then return {} end
     local result = {}
-    for _, ranks in ipairs({ { 679, 678, 1866, 680, 2495, 5569, 10332, 10333 },
-        { 853, 5588, 5589, 10308 }, { 20271 },
+    for order, ranks in ipairs({ { 679, 678, 1866, 680, 2495, 5569, 10332, 10333 },
+        { 20271 }, { 853, 5588, 5589, 10308 },
         { 26573, 20116, 20922, 20923, 20924 },
         { 20925, 20927, 20928 }, { 407632 } }) do
         for index = #ranks, 1, -1 do
@@ -126,7 +126,8 @@ function API.GetDefaultSpells()
             if Access.Call(C_SpellBook.IsSpellKnown, id, Enum.SpellBookSpellBank.Player) == true then
                 local info = Access.Call(C_Spell.GetSpellInfo, id)
                 if Access.Fields(info, { "name", "iconID" }) and type(info.name) == "string" then
-                    result[#result + 1] = { spellId = id, name = info.name, icon = info.iconID, ranks = ranks }
+                    result[#result + 1] = { spellId = id, name = info.name, icon = info.iconID, ranks = ranks,
+                        defaultOrder = order, previousDefaultOrder = order == 2 and 3 or order == 3 and 2 or order }
                 end
                 break
             end

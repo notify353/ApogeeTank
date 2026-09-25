@@ -21,7 +21,25 @@ function addon.StartCooldowns(anchor, getGeometry)
     end
     local function SeedDefaults()
         if not model then return end
-        for _, spell in ipairs(addon.CooldownAPI.GetDefaultSpells()) do
+        local defaults = addon.CooldownAPI.GetDefaultSpells()
+        local families = {}
+        for _, spell in ipairs(defaults) do
+            if spell.defaultOrder and spell.previousDefaultOrder then
+                for _, id in ipairs(spell.ranks) do families[id] = spell end
+            end
+        end
+        -- Saved lists predate order provenance. Only recognizable default
+        -- sequences may be normalized; preserve identifiable custom sequences.
+        local current, previous, lastCurrent, lastPrevious = true, true, 0, 0
+        for _, entry in ipairs(model.GetWatched()) do
+            local family = families[entry.spellId]
+            if family then
+                current = current and family.defaultOrder >= lastCurrent
+                previous = previous and family.previousDefaultOrder >= lastPrevious
+                lastCurrent, lastPrevious = family.defaultOrder, family.previousDefaultOrder
+            end
+        end
+        for _, spell in ipairs(defaults) do
             local ignored = false
             local choices = {}
             for _, entry in ipairs(model.GetEntries()) do
@@ -35,6 +53,15 @@ function addon.StartCooldowns(anchor, getGeometry)
             end
             model.Observe({ spell })
             if ignored then model.SetWatched(spell.spellId, false) end
+        end
+        if current or previous then
+            local selected, ids = model.GetWatched(), {}
+            for _, spell in ipairs(defaults) do
+                for _, entry in ipairs(selected) do
+                    if families[entry.spellId] == spell then ids[#ids + 1] = entry.spellId end
+                end
+            end
+            model.OrderWatched(ids)
         end
     end
     local entries, revision = {}, nil

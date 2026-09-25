@@ -1,6 +1,6 @@
 local _, addon = ...
 
-function addon.StartPicker(cooldowns)
+function addon.StartPicker(cooldowns, seals)
     local driver = CreateFrame("Frame")
     local initialized, inWorld, inCombat = false, true, false
     local view, pendingToggle
@@ -22,7 +22,7 @@ function addon.StartPicker(cooldowns)
         if not CanConfigure() then Close()
         else
             if not view then
-                view = addon.PickerView.Create({ Cooldowns = cooldowns,
+                view = addon.PickerView.Create({ Cooldowns = cooldowns, Seals = seals,
                     OnChanged = RequestRefresh, CanConfigure = CanConfigure })
             end
             view.Refresh()
@@ -55,6 +55,7 @@ function addon.StartPicker(cooldowns)
         if elapsed >= 0.05 then elapsed = 0; Refresh() end
     end)
     cooldowns.SetChangedHandler(RequestRefresh)
+    if seals then seals.SetChangedHandler(RequestRefresh) end
     driver:Hide()
     return { CanConfigure = CanConfigure, Toggle = function()
         if not CanConfigure() then return end

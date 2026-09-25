@@ -27,7 +27,7 @@ function addon.SealAPI.Learn()
             local order = type(spell.name) == "string" and names[spell.name]
             if order and type(spell.spellID) == "number" and not spell.isPassive and not spell.isOffSpec
                 and A.Call(C_SpellBook.IsSpellKnown, spell.spellID, bank) == true then
-                found[order] = { spellId = spell.spellID, name = spell.name, icon = spell.iconID }
+                found[order] = { spellId = spell.spellID, familyId = families[order], name = spell.name, icon = spell.iconID }
             end
         end
     end

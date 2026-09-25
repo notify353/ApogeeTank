@@ -114,6 +114,24 @@ function Model.Create(saved)
         end
         return entries
     end
+    -- Reorder only the named selections, keeping every other slot and opt-out.
+    function self.OrderWatched(ids)
+        local ordered, included = {}, {}
+        for _, id in ipairs(ids) do
+            if watched[id] and not included[id] then
+                ordered[#ordered + 1], included[id] = watched[id], true
+            end
+        end
+        local nextIndex, changed = 1, false
+        for index, effect in ipairs(store.watched) do
+            if included[effect.spellId] then
+                if effect ~= ordered[nextIndex] then changed = true end
+                store.watched[index] = ordered[nextIndex]
+                nextIndex = nextIndex + 1
+            end
+        end
+        if changed then revision = revision + 1 end
+    end
     function self.GetEntries()
         local entries, remaining = self.GetWatched(), {}
         for _, effect in ipairs(store.ignored) do

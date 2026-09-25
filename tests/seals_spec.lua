@@ -76,7 +76,8 @@ GameTooltip = {
     Show = function() end, Hide = function(self) self.owner = nil end,
 }
 assert(loadfile("Seals/Runtime.lua"))("test", addon)
-addon.StartSeals(addon.ThreatHud.GetSealGeometry)
+assert(loadfile("Seals/Selection.lua"))("test", addon)
+local runtime = addon.StartSeals(addon.ThreatHud.GetSealGeometry)
 local driver = frames[1]
 driver.scripts.OnEvent(driver, "PLAYER_LOGIN")
 assert(not named.ApogeeTankSealAction1, "combat reload created seal buttons")
@@ -152,3 +153,42 @@ driver.scripts.OnEvent(driver, "UNIT_AURA", "player")
 assert(not first.timer.shown and not named.ApogeeTankSealAction2.image.gray,
     "unknown death status was treated as alive")
 print("Seal timers recover after setter failure and clear when eligibility is unknown")
+
+combat = false
+UnitIsDeadOrGhost = function() return false end
+local selection = runtime.GetModel()
+assert(selection.IsWatched(21084) and selection.IsWatched(21082))
+local changes = 0
+runtime.SetChangedHandler(function() changes = changes + 1 end)
+assert(selection.SetWatched(21084, false)); runtime.Refresh()
+assert(first.attributes.spell == 21082 and first.attributes.unit == "player")
+assert(named.ApogeeTankSealAction2.visibility == "hide"
+    and named.ApogeeTankSealAction2.attributes.spell == nil, "hidden seal retained an action")
+assert(first.image.gray, "hidden active seal stopped identifying other seals as inactive")
+assert(not first.timer.shown and #addon.SealEntries == 2)
+local notified = changes
+runtime.Refresh()
+assert(changes == notified, "unchanged seals triggered picker refresh")
+combat = true
+assert(not selection.SetWatched(21084, true))
+runtime.Refresh()
+assert(first.attributes.spell == 21082, "combat visibility change rebound a secure action")
+combat = false
+driver.scripts.OnEvent(driver, "PLAYER_LEAVING_WORLD")
+assert(not selection.SetWatched(21084, true), "zoning allowed selection changes")
+driver.scripts.OnEvent(driver, "PLAYER_ENTERING_WORLD")
+assert(selection.SetWatched(21082, false)); runtime.Refresh()
+assert(first.visibility == "hide" and not first.attributes.spell and not first.timer.shown)
+local preserved = ApogeeTankSealsDB
+local frameIndex = #frames + 1
+local reloaded = addon.StartSeals(addon.ThreatHud.GetSealGeometry)
+frames[frameIndex].scripts.OnEvent(frames[frameIndex], "PLAYER_LOGIN")
+assert(ApogeeTankSealsDB ~= preserved and not reloaded.GetModel().IsWatched(21084)
+    and not reloaded.GetModel().IsWatched(21082), "reload discarded hidden seals")
+local future = {version = 99, hidden = {[21084] = true}}
+ApogeeTankSealsDB = future
+frameIndex = #frames + 1
+local blocked = addon.StartSeals(addon.ThreatHud.GetSealGeometry)
+frames[frameIndex].scripts.OnEvent(frames[frameIndex], "PLAYER_LOGIN")
+assert(blocked.GetModel() == nil and ApogeeTankSealsDB == future)
+print("Seal HUD visibility, hidden active aura, guarded secure rebinding and runtime persistence passed")

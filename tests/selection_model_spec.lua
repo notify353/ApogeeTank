@@ -67,6 +67,18 @@ model.Observe({ a })
 assert(model.IsWatched(1001), "a cleared opt-out prevented learning from starting fresh")
 print("Automatic discovery, persistent opt-outs, migration and ordering tests passed")
 
+local ordered = Model.Create(nil)
+ordered.Observe({ {spellId = 1}, {spellId = 2}, {spellId = 3}, {spellId = 4} })
+ordered.SetWatched(4, false)
+local orderRevision = ordered.GetRevision()
+ordered.OrderWatched({3, 4, 3, 99, 1})
+local selections = ordered.GetWatched()
+assert(selections[1].spellId == 3 and selections[2].spellId == 2 and selections[3].spellId == 1)
+assert(not ordered.IsWatched(4) and ordered.GetRevision() == orderRevision + 1)
+orderRevision = ordered.GetRevision()
+ordered.OrderWatched({3, 1})
+assert(ordered.GetRevision() == orderRevision, "unchanged ordering invalidated selection cache")
+
 local revisionModel = Model.Create(nil)
 local effect = { spellId = 999, name = "Revision test", icon = 1 }
 revisionModel.Observe({effect})

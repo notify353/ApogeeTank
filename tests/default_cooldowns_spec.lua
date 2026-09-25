@@ -1,6 +1,7 @@
 local addon = {}
 assert(loadfile("Core/Access.lua"))("test", addon)
 assert(loadfile("Core/Cooldowns.lua"))("test", addon)
+local GetDefaultSpells = addon.CooldownAPI.GetDefaultSpells
 local combat, class = false, "PALADIN"
 local known = { [679] = true, [853] = true }
 InCombatLockdown = function() return combat end
@@ -15,7 +16,8 @@ assert(addon.CooldownAPI.GetDefaultSpells()[1].spellId == 678)
 known = { [679] = true, [853] = true, [20271] = true, [26573] = true,
     [20924] = true, [20925] = true, [20928] = true, [407632] = true }
 defaults = addon.CooldownAPI.GetDefaultSpells()
-assert(#defaults == 6 and defaults[3].spellId == 20271 and defaults[4].spellId == 20924
+assert(#defaults == 6 and defaults[1].spellId == 679 and defaults[2].spellId == 20271
+    and defaults[3].spellId == 853 and defaults[4].spellId == 20924
     and defaults[5].spellId == 20928 and defaults[6].spellId == 407632)
 known = {}
 assert(#addon.CooldownAPI.GetDefaultSpells() == 0)
@@ -121,3 +123,71 @@ model.SetWatched(1866, false)
 Event("PLAYER_REGEN_ENABLED")
 assert(not model.IsWatched(1866), "current rank opt-out was reset")
 print("Default rank selection survives rechecks and later upgrades")
+
+-- Exercise actual default identities through persistence and live-view input.
+addon.CooldownAPI.GetDefaultSpells = GetDefaultSpells
+combat, class = false, "PALADIN"
+C_SpellBook.IsSpellKnown = function(id) return known[id] == true end
+local rendered
+addon.CooldownView.Create = function()
+    return { Render = function(entries) rendered = entries end, Hide = function() end }
+end
+local function Saved(ids, ignored)
+    local saved = { version = 2, watched = {}, ignored = {} }
+    for _, id in ipairs(ids) do saved.watched[#saved.watched + 1] = { spellId = id } end
+    for _, id in ipairs(ignored or {}) do saved.ignored[#saved.ignored + 1] = { spellId = id } end
+    return saved
+end
+local function Start(saved, spells)
+    known, ApogeeTankCooldownsDB = spells, saved
+    local firstFrame = #frames + 1
+    local instance = addon.StartCooldowns(function() end)
+    local frame = frames[firstFrame]
+    local function Send(event) frame.scripts.OnEvent(frame, event) end
+    Send("PLAYER_LOGIN")
+    return instance.GetModel(), Send
+end
+local function AssertOrder(selection, ids)
+    local entries = selection.GetWatched()
+    assert(#entries == #ids, "unexpected selection count")
+    local visible = {}
+    for _, entry in ipairs(rendered) do
+        if entry.watched then visible[#visible + 1] = entry.spellId end
+    end
+    for index, id in ipairs(ids) do
+        assert(entries[index].spellId == id and visible[index] == id,
+            "saved/display order differs at slot " .. index)
+    end
+end
+local allKnown = { [679] = true, [20271] = true, [853] = true,
+    [26573] = true, [20925] = true, [407632] = true }
+local selection, send = Start(nil, allKnown)
+AssertOrder(selection, {679, 20271, 853, 26573, 20925, 407632})
+selection, send = Start(Saved({679, 999, 853, 20271, 26573, 20925, 407632}), allKnown)
+AssertOrder(selection, {679, 999, 20271, 853, 26573, 20925, 407632})
+local unchangedRevision = selection.GetRevision()
+send("PLAYER_REGEN_ENABLED")
+assert(selection.GetRevision() == unchangedRevision, "stable defaults caused repeated changes")
+selection, send = Start(nil, { [679] = true })
+AssertOrder(selection, {679})
+known[853] = true; send("SPELLS_CHANGED")
+AssertOrder(selection, {679, 853})
+known[20271] = true; send("SPELLS_CHANGED")
+AssertOrder(selection, {679, 20271, 853})
+selection = Start(selection.GetSaved(), known)
+AssertOrder(selection, {679, 20271, 853})
+selection = Start(Saved({853, 679, 20271}), allKnown)
+AssertOrder(selection, {853, 679, 20271, 26573, 20925, 407632})
+selection = Start(Saved({679, 853}, {20271}), allKnown)
+AssertOrder(selection, {679, 853, 26573, 20925, 407632})
+assert(not selection.IsWatched(20271), "ordering discarded Judgement opt-out")
+selection, send = Start(Saved({679, 853, 20271}), allKnown)
+combat = true
+known[678] = true; send("SPELLS_CHANGED")
+AssertOrder(selection, {679, 20271, 853, 26573, 20925, 407632})
+combat = false; send("PLAYER_REGEN_ENABLED")
+assert(selection.IsWatched(678), "out-of-combat rank discovery failed")
+class = "WARRIOR"
+selection = Start(Saved({999, 853, 679}), {})
+AssertOrder(selection, {999, 853, 679})
+print("Paladin default ordering covers fresh/saved lists, leveling, opt-outs, custom slots and other classes")

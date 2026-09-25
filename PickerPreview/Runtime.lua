@@ -83,8 +83,9 @@ function addon.CreatePickerPreview(parent, models)
     end
     local function Refresh()
         spells = Selected(models.Cooldowns)
+        local selectedSeals = Selected(models.Seals)
         for index, icon in ipairs(seals) do
-            local entry = (addon.SealEntries or {})[index]
+            local entry = selectedSeals[index]
             icon.image:SetTexture(entry and entry.icon)
             icon:SetShown(entry ~= nil)
         end

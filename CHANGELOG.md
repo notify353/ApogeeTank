@@ -2,6 +2,8 @@
 
 ## Unreleased — Forever only
 
+- Order known Paladin defaults Holy Strike, Judgement, then Hammer of Justice, including later learning and recognized saved default sequences; preserve opt-outs, identifiable custom orders and non-default slots.
+- Add a Paladin Seals checklist beside cooldowns, with per-character family visibility opt-outs that survive ranks and reloads; keep native casting on shown seals, combat/zoning guards, and cooldown Clear independent.
 - Limit cooldown range notifications to the affected spell and skip unchanged seal-artwork writes, preserving synchronous updates and guarded aura reads.
 - Review refreshed Forever 1.60.1.70009 contracts and native secure integration; update the reviewed build and export provenance.
 - Honor event-scoped GCD classification and latest-rank cooldown selections; recover failed seal timers, clear unknown seal eligibility, and clear guidance on death.

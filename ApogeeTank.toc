@@ -4,7 +4,7 @@
 ## IconTexture: Interface\AddOns\ApogeeTank\Media\Textures\ApogeeLogo.png
 ## Notes: Current-target tank threat HUD for WoW Forever.
 ## Version: 0.1.0-dev
-## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB, ApogeeTankUIDB
+## SavedVariablesPerCharacter: ApogeeTankEffectsDB, ApogeeTankCooldownsDB, ApogeeTankUIDB, ApogeeTankSealsDB
 
 UI/Style.lua
 Core/Access.lua
@@ -29,5 +29,6 @@ Guidance/Model.lua
 Guidance/API.lua
 Guidance/Runtime.lua
 Seals/API.lua
+Seals/Selection.lua
 Seals/Runtime.lua
 ApogeeTank.lua

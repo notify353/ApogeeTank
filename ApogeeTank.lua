@@ -4,9 +4,8 @@ if not addon.Client then return end
 addon.StartThreat()
 local stance = addon.StartStance(addon.ThreatHud.GetStanceAnchor, addon.ThreatHud.GetStanceGeometry)
 local cooldowns = addon.StartCooldowns(addon.ThreatHud.GetCooldownAnchor, addon.ThreatHud.GetCooldownGeometry)
-local picker = addon.StartPicker(cooldowns)
+local seals = addon.StartSeals(addon.ThreatHud.GetSealGeometry)
+local picker = addon.StartPicker(cooldowns, seals)
 addon.StartMinimap(picker)
 
 addon.StartGuidance(addon.ThreatHud.GetGuidanceAnchor, stance)
-
-addon.StartSeals(addon.ThreatHud.GetSealGeometry)
