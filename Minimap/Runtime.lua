@@ -1,5 +1,4 @@
 local _, addon = ...
-local DEFAULT_ANGLE = 190
 local function Finite(value)
     if issecretvalue and issecretvalue(value) then return false end
     if canaccessvalue and not canaccessvalue(value) then return false end
@@ -8,7 +7,7 @@ end
 
 function addon.StartMinimap(picker)
     local driver = CreateFrame("Frame")
-    local button, angle, inWorld = nil, DEFAULT_ANGLE, true
+    local button, angle, inWorld = nil, nil, true
     local pendingPosition, suppressClick = true, false
     local function CanConfigure()
         return inWorld and picker.CanConfigure()
@@ -19,10 +18,12 @@ function addon.StartMinimap(picker)
         if not Finite(width) or not Finite(height) or width <= 0 or height <= 0 then return end
         local level = Minimap:GetFrameLevel()
         if not Finite(level) or level < 0 then return end
-        local radians = math.rad(angle)
-        local c, s = math.cos(radians), math.sin(radians)
         -- Keep a circular orbit, using the larger dimension for rectangular minimaps.
         local radius = math.max(width, height) / 2 + 20
+        -- Default family cluster centers on220;46-unit chords keep32-unit buttons apart.
+        local spacing = math.max(15, math.deg(2 * math.asin(math.min(1, 46 / (2 * radius)))))
+        local radians = math.rad(angle or (220 + spacing))
+        local c, s = math.cos(radians), math.sin(radians)
         button:SetFrameLevel(level + 20)
         button:ClearAllPoints()
         button:SetPoint("CENTER", Minimap, "CENTER", radius * c, radius * s)
@@ -47,11 +48,6 @@ function addon.StartMinimap(picker)
     end
     local function Build()
         if button or not Minimap then return end
-        if type(ApogeeTankUIDB) ~= "table" then ApogeeTankUIDB = {} end
-        local saved = ApogeeTankUIDB.minimapAngle
-        if Finite(saved) then
-            angle = saved % 360
-        end
         button = CreateFrame("Button", "ApogeeTankMinimapButton", Minimap)
         button:SetSize(32, 32)
         button:EnableMouse(true)
@@ -93,8 +89,7 @@ function addon.StartMinimap(picker)
                 local previousAngle = angle
                 angle = math.deg(math.atan2(dy, dx)) % 360
                 pendingPosition = true
-                if Position() then ApogeeTankUIDB.minimapAngle = angle
-                else angle = previousAngle end
+                if not Position() then angle = previousAngle end
             end)
         end)
         button:SetScript("OnDragStop", StopDrag)
