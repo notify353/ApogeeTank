@@ -85,7 +85,7 @@ assert(button.enabled and toggles == 1, "world entry unexpectedly reopened picke
 frames, named = {}, {}
 Start(); Event("PLAYER_LOGIN")
 button = named.ApogeeTankMinimapButton
-assert(ApogeeTankUIDB == saved and math.abs(button.point[4]) < 0.001 and button.point[5] == 110,
+assert(ApogeeTankUIDB == saved and math.abs(button.point[4]) < 0.001 and button.point[5] == 90,
     "reload lost saved minimap placement")
 for _, invalid in ipairs({ "broken", math.huge, 0/0 }) do
     frames, named = {}, {}
@@ -110,13 +110,25 @@ end
 local function PointAt(degrees, width, height)
     local b = Fresh(degrees, width, height)
     local x, y = b.point[4], b.point[5]
-    assert(math.abs(x) >= width / 2 + 20 - 0.00001
-        or math.abs(y) >= height / 2 + 20 - 0.00001, "button intersected expanded minimap bounds")
-    assert(x * x + y * y >= 110 * 110 - 0.00001)
+    local radius = math.max(width, height) / 2 + 20
+    assert(math.abs(math.sqrt(x * x + y * y) - radius) < 0.00001,
+        "minimap orbit did not maintain constant circular radius")
+    assert(math.abs(x - radius * math.cos(math.rad(degrees))) < 0.00001
+        and math.abs(y - radius * math.sin(math.rad(degrees))) < 0.00001,
+        "minimap placement changed the requested angle")
+    assert(radius - math.max(width, height) / 2 - 16 >= 4, "button lost circular rim clearance")
     assert(ApogeeTankUIDB.minimapAngle == degrees, "build rewrote a prior drag angle")
     return {x, y}
 end
-for _, dimensions in ipairs({{120,120}, {140,140}, {200,200}, {120,200}, {200,120}, {300,100}, {100,300}}) do
+for _, dimensions in ipairs({{120,120,80}, {140,140,90}, {200,200,120}, {120,200,120}, {200,120,120}, {300,100,170}, {100,300,170}}) do
+    for _, degrees in ipairs({0, 12, 45, 90, 135, 180, 225, 270, 315, 333, -30, 732}) do
+        local point = PointAt(degrees, dimensions[1], dimensions[2])
+        assert(math.abs(math.sqrt(point[1]^2 + point[2]^2) - dimensions[3]) < 0.00001)
+    end
+    local defaultButton = Fresh(nil, dimensions[1], dimensions[2])
+    assert(math.abs(defaultButton.point[4] - dimensions[3] * math.cos(math.rad(190))) < 0.00001
+        and math.abs(defaultButton.point[5] - dimensions[3] * math.sin(math.rad(190))) < 0.00001
+        and ApogeeTankUIDB.minimapAngle == nil, "fresh Tank default geometry changed or was persisted")
     local positions = {}
     for _, degrees in ipairs({190, 225, 260}) do
         positions[#positions + 1] = PointAt(degrees, dimensions[1], dimensions[2])
@@ -180,7 +192,7 @@ button:Show()
 button.scripts.OnMouseDown(button, "LeftButton"); button.scripts.OnClick(button, "LeftButton")
 assert(toggles == oldToggles + 2)
 assert(not button.scripts.OnUpdate, "idle minimap button kept polling")
-print("Shared minimap bounds, default separation, preserved angles, native resize hooks and drag/click guards passed")
+print("Circular minimap orbit, exact default radii, default separation, preserved angles, native resize hooks and drag/click guards passed")
 
 local restricted = setmetatable({}, {__add = function() error("restricted arithmetic") end,
     __div = function() error("restricted arithmetic") end, __lt = function() error("restricted comparison") end})
@@ -212,6 +224,6 @@ assert(ApogeeTankUIDB.minimapAngle == 90 and button.point == oldPoint,
     "invalid dimensions persisted failed drag placement")
 button.scripts.OnDragStop()
 mapWidth = 140; Event("UI_SCALE_CHANGED")
-assert(math.abs(button.point[4]) < 0.00001 and button.point[5] == 110
+assert(math.abs(button.point[4]) < 0.00001 and button.point[5] == 90
     and ApogeeTankUIDB.minimapAngle == 90, "failed drag replaced the remembered placement angle")
 print("Restricted frame level, dimensions, center, scale and cursor inputs defer safely")

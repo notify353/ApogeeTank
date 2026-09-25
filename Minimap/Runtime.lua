@@ -21,10 +21,8 @@ function addon.StartMinimap(picker)
         if not Finite(level) or level < 0 then return end
         local radians = math.rad(angle)
         local c, s = math.cos(radians), math.sin(radians)
-        -- Outside expanded rectangular bounds also clears round/unknown masks.
-        local rx = math.abs(c) < 0.000001 and math.huge or (width / 2 + 20) / math.abs(c)
-        local ry = math.abs(s) < 0.000001 and math.huge or (height / 2 + 20) / math.abs(s)
-        local radius = math.max(110, math.min(rx, ry))
+        -- Keep a circular orbit, using the larger dimension for rectangular minimaps.
+        local radius = math.max(width, height) / 2 + 20
         button:SetFrameLevel(level + 20)
         button:ClearAllPoints()
         button:SetPoint("CENTER", Minimap, "CENTER", radius * c, radius * s)
