@@ -2,6 +2,7 @@
 
 ## Unreleased — Forever only
 
+- Align Tank's minimap button with the shared outside-rim family placement at default190 degrees; preserve dragged angles, adapt to bounds/scale changes, and suppress post-drag clicks without idle polling.
 - Restore Holy Strike and Judgement default-on in HS/J/HoJ order, re-enabling automatic-off choices while preserving recorded user opt-outs.
 - Order enabled learned seals Fury, Righteousness, Crusader, then other families; retain Crusader default-off and add Devotion-style TANK/DPS native-tooltip footers.
 - Default Seal of the Crusader to unchecked while keeping its checkbox available; seal schema 2 preserves explicit family opt-ins and opt-outs through ranks and reloads.

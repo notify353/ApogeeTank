@@ -14,6 +14,10 @@ local function Frame(kind, name, parent, template)
 end
 function methods:SetPoint(...) self.points[#self.points + 1] = {...} end
 function methods:ClearAllPoints() self.points = {} end
+function methods:HookScript(event, hook)
+    local original = self.scripts[event]
+    self.scripts[event] = function(...) if original then original(...) end; hook(...) end
+end
 function methods:SetAllPoints(relative) self.allPoints = relative or self.parent end
 function methods:SetBackdrop() end
 function methods:SetBackdropColor(...) self.backdropColor = {...} end
