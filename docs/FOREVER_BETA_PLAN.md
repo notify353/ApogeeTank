@@ -40,10 +40,13 @@ older confirmations are not acceptance of this geometry or picker.
 
 ## Installation and rollback
 
-Requested Tank changes include local Forever installation after checks, without
-a separate install prompt. Inspect the actual client addon directory and compare
-installed files with known source before replacement. Stop conflicting overwrites,
-preserve unrecognized files and character data, and verify a separate backup and
-installed file hashes. Existing historical backups remain untouched. Do not
-operate or restart the game; report the required reload and live acceptance.
-Publishing and releases remain separately authorized.
+Requested Tank source changes include checked local DEV installation without a
+separate install prompt, exclusively through the central Apogee Forever builder
+and installer. Follow
+`C:/Dev/WoW/ApogeePartyHealthBars/distribution/DUAL_WORKFLOW.md`.
+Never copy a child checkout over PROD or use the one-time retrofit option for
+routine development. The central owner alone updates reviewed aggregate pins;
+documentation-only Tank commits do not repin or reinstall runtime. Preserve the
+central transaction/rollback chain, unrecognized files, character data and
+historical backups. Do not operate or restart the game; report the required
+reload and live acceptance. Publishing and releases remain separately authorized.
