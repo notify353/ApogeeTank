@@ -18,7 +18,8 @@ local function Frame(_, name, parent)
     function f:CreateTexture() return Frame() end
     function f:SetPoint(...) assert(not combat); self.point = {...} end
     function f:ClearAllPoints() end
-    function f:SetTexture() end
+    function f:SetTexture(texture) self.texture = texture end
+    function f:SetTexCoord(...) self.texCoord = {...} end
     function f:SetHighlightTexture() end
     function f:SetAlpha(a) self.alpha = a end
     function f:SetEnabled(b) self.enabled = b end
@@ -61,6 +62,10 @@ assert(button and not button.enabled, "uninitialized picker was available")
 assert(button.point[4] < 0 and button.point[5] < 0, "default is not lower-left")
 assert(ApogeeTankUIDB.minimapAngle == nil, "default angle was persisted as a user choice")
 assert(button.width == 32 and button.height == 32 and button.icon.width == 20 and button.icon.height == 20)
+assert(button.icon.texture == "Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES",
+    "minimap icon is not the native role shield texture")
+assert(table.concat(button.icon.texCoord, ",") == table.concat({0, 19/64, 22/64, 41/64}, ","),
+    "minimap icon does not crop the native tank shield")
 ready = true; Event("PLAYER_ENTERING_WORLD")
 button.scripts.OnClick(button, "LeftButton")
 button.scripts.OnClick(button, "RightButton")
