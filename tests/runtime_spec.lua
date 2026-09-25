@@ -884,7 +884,7 @@ crusaderChoice:SetChecked(true); crusaderChoice.scripts.OnClick(crusaderChoice)
 assert(ApogeeTankSealsDB.hidden[21082] == false and named.ApogeeTankSealAction2,
     "explicit Crusader opt-in did not save or show its secure action")
 sealChoice:SetChecked(false); sealChoice.scripts.OnClick(sealChoice)
-assert(ApogeeTankSealsDB.hidden[21084] and #ApogeeTankCooldownsDB.watched == 1)
+assert(ApogeeTankSealsDB.hidden[21084] and #ApogeeTankCooldownsDB.watched == 3)
 assert(named.ApogeeTankSealAction1.attributeDrivers.spell == "21082"
     and named.ApogeeTankSealAction2.stateDriver[2] == "hide")
 assert(not sealChoice:GetChecked(), "seal checklist lost unchecked row")
@@ -921,7 +921,7 @@ for _, item in ipairs(frames) do
         if item.icon.texture == 20271 then judgementChoice = item end
     end
 end
-assert(holyChoice and judgementChoice and not holyChoice:GetChecked() and not judgementChoice:GetChecked())
+assert(holyChoice and judgementChoice and holyChoice:GetChecked() and judgementChoice:GetChecked())
 judgementChoice:SetChecked(true); judgementChoice.scripts.OnClick(judgementChoice)
 -- Rows can move when a cooldown is selected; find Holy Strike again.
 for _, item in ipairs(frames) do

@@ -22,9 +22,27 @@ C_SpellBook = {
     IsSpellKnown = function(id) return id ~= 1311649 or learnedFury end,
 }
 assert(loadfile("Seals/API.lua"))("test", addon)
-assert(#addon.SealAPI.Learn() == 2, "unlearned or unrelated spell included")
+local learned = addon.SealAPI.Learn()
+assert(#learned == 2 and learned[1].spellId == 21084 and learned[2].spellId == 21082,
+    "unlearned Fury appeared or known seals lost their order")
 learnedFury = true
-assert(#addon.SealAPI.Learn() == 3)
+learned = addon.SealAPI.Learn()
+assert(#learned == 3 and learned[1].spellId == 1311649 and learned[2].spellId == 21084
+    and learned[3].spellId == 21082, "Fury/Righteousness/Crusader order failed")
+-- Synthetic later learned rank: identity comes from the spellbook, not a rank catalog.
+spells[#spells + 1] = {name = "Fury", spellID = 999001, iconID = 31}
+learned = addon.SealAPI.Learn()
+assert(learned[1].spellId == 999001 and learned[1].familyId == 1311649)
+table.remove(spells)
+for _, id in ipairs({20375, 20164, 20165, 20166}) do
+    names[id] = "Other" .. id
+    spells[#spells + 1] = {name = names[id], spellID = id, iconID = id}
+end
+learned = addon.SealAPI.Learn()
+for index, id in ipairs({1311649, 21084, 21082, 20375, 20164, 20165, 20166}) do
+    assert(learned[index].spellId == id, "other seal family order changed")
+end
+for index = 1, 4 do table.remove(spells) end
 class = "WARRIOR"; assert(#addon.SealAPI.Learn() == 0); class = "PALADIN"
 combat = true; assert(addon.SealAPI.Learn() == nil)
 local frames, named = {}, {}
@@ -75,7 +93,8 @@ addon.Style = { Icon = function() return { SetTexture = function(self, value) se
 GameTooltip = {
     IsOwned = function(self, owner) return self.owner == owner end,
     SetOwner = function(self, owner) self.owner = owner end,
-    SetSpellByID = function(self, id) self.id = id end,
+    SetSpellByID = function(self, id) self.id = id; self.lines = {} end,
+    AddLine = function(self, ...) self.lines[#self.lines + 1] = {...} end,
     Show = function() end, Hide = function(self) self.owner = nil end,
 }
 assert(loadfile("Seals/Runtime.lua"))("test", addon)
@@ -89,15 +108,34 @@ combat = false; driver.scripts.OnEvent(driver, "PLAYER_REGEN_ENABLED")
 local first = assert(named.ApogeeTankSealAction1)
 assert(first.width == 22 and first.point[4] == 70.5 and first.point[5] == -21.5)
 assert(named.ApogeeTankSealAction2.point[4] == 94.5, "seal row spacing differs from cooldowns")
-assert(first.attributes.spell == 21084 and first.attributes.unit == "player")
+assert(first.attributes.spell == 1311649 and first.attributes.unit == "player")
 assert(first.attributes.type1 == "spell" and first.clicks == "LeftButtonUp")
 assert(first.visibility == "[combat][dead] hide; show", "seal visibility is not native combat-gated")
-first.scripts.OnEnter(first); assert(GameTooltip.id == 21084)
+first.scripts.OnEnter(first); assert(GameTooltip.id == 1311649)
+assert(GameTooltip.lines[1][1] == " " and GameTooltip.lines[2][1] == "TANK"
+    and GameTooltip.lines[2][2] == 1 and GameTooltip.lines[2][3] == 0.82
+    and GameTooltip.lines[2][4] == 0.35, "Fury footer differs from Devotion Aura")
+for index, id in ipairs({21084, 21082}) do
+    local button = named["ApogeeTankSealAction" .. (index + 1)]
+    button.scripts.OnEnter(button)
+    assert(GameTooltip.id == id and GameTooltip.lines[2][1] == "DPS", "seal DPS footer missing")
+    button.scripts.OnLeave(button)
+end
 first.scripts.OnLeave(first); assert(GameTooltip.owner == nil)
+assert(runtime.GetModel().SetWatched(1311649, false)); runtime.Refresh()
+assert(first.attributes.spell == 21084 and named.ApogeeTankSealAction2.attributes.spell == 21082,
+    "unchecked Fury kept its first slot or disturbed remaining order")
+assert(runtime.GetModel().SetWatched(1311649, true)); runtime.Refresh()
+assert(first.attributes.spell == 1311649 and first.familyId == 1311649,
+    "rechecked Fury did not return to the first slot")
 combat = true; learnedFury = false
 driver.scripts.OnEvent(driver, "SPELLS_CHANGED")
-assert(named.ApogeeTankSealAction3.attributes.spell == 1311649, "combat changed seal assignment")
+assert(first.attributes.spell == 1311649, "combat changed seal assignment")
 combat = false; driver.scripts.OnEvent(driver, "PLAYER_REGEN_ENABLED")
+assert(first.attributes.spell == 21084 and first.familyId == 21084)
+first.scripts.OnEnter(first)
+assert(GameTooltip.id == 21084 and GameTooltip.lines[2][1] == "DPS", "recycled button kept old role footer")
+first.scripts.OnLeave(first)
 assert(named.ApogeeTankSealAction3.visibility == "hide")
 assert(not driver.scripts.OnUpdate, "seal row added polling")
 print("Learned-only seal row, native tooltips, fixed combat assignments and combat-reload deferral passed")

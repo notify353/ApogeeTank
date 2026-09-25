@@ -61,7 +61,7 @@ function addon.SealSelection.Create(saved, canConfigure)
     function self.GetEntries()
         local result = {}
         for _, entry in ipairs(entries) do
-            result[#result + 1] = { spellId = entry.spellId, name = entry.name,
+            result[#result + 1] = { spellId = entry.spellId, familyId = entry.familyId, name = entry.name,
                 icon = entry.icon, watched = not store.hidden[entry.familyId] }
         end
         return result

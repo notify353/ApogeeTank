@@ -3,7 +3,7 @@ local A = addon.Access
 addon.SealAPI = {}
 -- Family references resolve localized names; only learned spellbook entries appear.
 -- Fury reference: Forever spellbook, build 69913 (60.tools/spellbook/paladin).
-local families = { 21084, 21082, 1311649, 20375, 20164, 20165, 20166 }
+local families = { 1311649, 21084, 21082, 20375, 20164, 20165, 20166 }
 function addon.SealAPI.Learn()
     if InCombatLockdown() then return nil end
     local _, class = A.Call(UnitClass, "player")

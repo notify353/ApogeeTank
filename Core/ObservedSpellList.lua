@@ -35,6 +35,9 @@ function Model.Create(saved)
         for _, raw in ipairs(saved.ignored) do
             local effect = Identity(raw)
             if effect and not watched[effect.spellId] and not ignored[effect.spellId] then
+                -- Before schema 3, ignored identities were user opt-outs (or
+                -- inherited rank opt-outs), not automatic default-off choices.
+                if not version or version < 3 then effect.explicit = true end
                 ignored[effect.spellId] = effect
                 store.ignored[#store.ignored + 1] = effect
             end

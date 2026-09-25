@@ -2,6 +2,8 @@
 
 ## Unreleased — Forever only
 
+- Restore Holy Strike and Judgement default-on in HS/J/HoJ order, re-enabling automatic-off choices while preserving recorded user opt-outs.
+- Order enabled learned seals Fury, Righteousness, Crusader, then other families; retain Crusader default-off and add Devotion-style TANK/DPS native-tooltip footers.
 - Default Seal of the Crusader to unchecked while keeping its checkbox available; seal schema 2 preserves explicit family opt-ins and opt-outs through ranks and reloads.
 - Hide the complete seal strip during combat through native secure visibility; restore selected seals outside combat and suppress combat timer overlays/aura reads.
 - Gray verified hostile-target cooldowns when no target exists, retaining click-to-acquire and existing cooldown/range/resource visuals without dimming self/ground spells by range guesses.

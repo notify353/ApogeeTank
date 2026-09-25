@@ -1,4 +1,5 @@
 local _, addon = ...
+local roleLabels = { [1311649] = "TANK", [21084] = "DPS", [21082] = "DPS" }
 function addon.StartSeals(getGeometry)
     local driver, buttons = CreateFrame("Frame"), {}
     local function HideTooltip(button)
@@ -92,7 +93,14 @@ function addon.StartSeals(getGeometry)
                 button:SetScript("OnEnter", function(self)
                     if self.spellId and GameTooltip then
                         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        GameTooltip:SetSpellByID(self.spellId); GameTooltip:Show()
+                        GameTooltip:SetSpellByID(self.spellId)
+                        -- Match the Devotion Aura native-tooltip footer.
+                        local label = roleLabels[self.familyId]
+                        if label then
+                            GameTooltip:AddLine(" ")
+                            GameTooltip:AddLine(label, 1, 0.82, 0.35)
+                        end
+                        GameTooltip:Show()
                     end
                 end)
                 button:SetScript("OnLeave", HideTooltip)
@@ -102,6 +110,7 @@ function addon.StartSeals(getGeometry)
             if button and button.spellId ~= (entry and entry.spellId) then
                 HideTooltip(button)
                 button.spellId = entry and entry.spellId
+                button.familyId = entry and entry.familyId
                 button.image:SetTexture(entry and entry.icon)
                 button.lastDimmed = nil
                 button.timer:Hide()

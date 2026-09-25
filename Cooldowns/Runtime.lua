@@ -54,25 +54,16 @@ function addon.StartCooldowns(anchor, getGeometry)
                 local choice = choices[spell.ranks[index]]
                 if choice then
                     explicit = choice.explicit == true
-                    if explicit or not choice.watched or spell.defaultWatched ~= false
-                        or managedDefaultOrder == false then
+                    if explicit or not spell.restoreAutomaticChoice then
                         ignored = not choice.watched
-                        -- Noncanonical legacy ordering is evidence of customization.
-                        if managedDefaultOrder == false then explicit = true end
                     end
+                    -- Noncanonical selected order is evidence of customization.
+                    if managedDefaultOrder == false and choice.watched then explicit = true end
                     break
                 end
             end
             model.Observe({ spell })
             model.SetWatched(spell.spellId, not ignored, not explicit)
-            if ignored and spell.defaultWatched == false then
-                -- Historical ranks must not remain visible after the family
-                -- becomes default-off. Preserve any demonstrable explicit opt-in.
-                for _, rank in ipairs(spell.ranks) do
-                    local old = choices[rank]
-                    if old and old.watched and not old.explicit then model.SetWatched(rank, false, true) end
-                end
-            end
         end
         if managedDefaultOrder then
             local selected, ids = model.GetWatched(), {}

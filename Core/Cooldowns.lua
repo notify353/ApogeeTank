@@ -137,7 +137,7 @@ function API.GetDefaultSpells()
                 local info = Access.Call(C_Spell.GetSpellInfo, id)
                 if Access.Fields(info, { "name", "iconID" }) and type(info.name) == "string" then
                     result[#result + 1] = { spellId = id, name = info.name, icon = info.iconID, ranks = ranks,
-                        defaultWatched = order > 2, defaultOrder = order,
+                        defaultWatched = true, restoreAutomaticChoice = order <= 2, defaultOrder = order,
                         previousDefaultOrder = order == 2 and 3 or order == 3 and 2 or order }
                 end
                 break
