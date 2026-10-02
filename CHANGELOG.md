@@ -2,6 +2,11 @@
 
 ## Unreleased — Forever only
 
+- Recognize Forever's native Camelot project identity and retain legacy client
+  identification. Stop rejecting compatible Forever clients because their
+  interface number differs; required API and family-isolation checks remain.
+
+
 - Place Tank's native shield at the lower-right end of the evenly spaced circular minimap cluster (Heals, Keybinds, Tank). Use radius=max(width,height)/2+16 for nominal 32-unit circle tangency; painted border alignment still needs live acceptance. Restore adaptive defaults on reload, keep dragging session-only without reading or changing historical angles, and preserve resize/combat/zoning/click guards without idle polling.
 - Restore Holy Strike and Judgement default-on in HS/J/HoJ order, re-enabling automatic-off choices while preserving recorded user opt-outs.
 - Order enabled learned seals Fury, Righteousness, Crusader, then other families; retain Crusader default-off and add Devotion-style TANK/DPS native-tooltip footers.

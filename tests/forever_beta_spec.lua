@@ -23,7 +23,6 @@ assert(not addon.Client,"Missing frame capability must stop startup")
 CreateFrame=create; print=originalPrint
 for _, change in ipairs({
     { "1.15.9", "69722", 11509, 2 },
-    { "1.60.2", "70009", 16002, 1 },
     { "1.60.1", "70009", 16001, 2 }, { "12.0.0", "70009", 120000, 1 },
 }) do
     version, build, interface, WOW_PROJECT_ID = unpack(change)

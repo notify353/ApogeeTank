@@ -2,8 +2,9 @@ local _, addon = ...
 local version, build, _, interface = GetBuildInfo()
 addon.Client = nil
 if type(CreateFrame) ~= "function" then return end
-if WOW_PROJECT_ID == 1 and type(version)=="string" and version:match("^1%.60%.")
-    and tonumber(interface) == 16001 and type(issecretvalue) == "function"
+local forever = (type(WOW_PROJECT_CAMELOT) == "number" and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT)
+        or (WOW_PROJECT_ID == 1 and type(version) == "string" and version:match("^1%.60%."))
+if forever and type(issecretvalue) == "function"
     and type(canaccessvalue) == "function" then
     addon.Client = "foreverBeta"
 end

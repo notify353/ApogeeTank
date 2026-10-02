@@ -5,9 +5,9 @@
       "product": "wow_classic_beta",
       "clientDirectory": "_classic_beta_",
       "executable": "WowB.exe",
-      "clientVersion": "1.60.1.70009",
+      "clientVersion": "1.60.1.70170",
       "interface": 16001,
-      "recordedOn": "2026-09-24",
+      "recordedOn": "2026-10-01",
       "requiredFiles": [
         "RaidMarkersDocumentation.lua",
         "SimpleTextureBaseAPIDocumentation.lua",
